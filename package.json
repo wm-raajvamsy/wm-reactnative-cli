@@ -1,0 +1,23 @@
+{
+  "name": "@wavemaker/wm-reactnative-cli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "wm-reactnative": "./index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "execa": "^4.0.3",
+    "fs-extra": "^9.0.1",
+    "plist": "^3.0.2",
+    "semver": "^7.3.2",
+    "winston": "^3.3.3",
+    "yargs": "^15.4.0",
+    "yarn": "^1.22.10"
+  }
+}
