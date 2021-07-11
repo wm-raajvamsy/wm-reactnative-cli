@@ -6,35 +6,14 @@ const {
 
 // src is the web react native project zip
 const args = require('yargs')
-    .command('eject [src] [packagename] [localrnruntimepath]', 'generates react-native project from the expo project', yargs => {
-        yargs.positional('src', {
-            describe: 'path of expo project',
-            default: './',
-            type: 'string',
-            normalize: true
-        });
-        yargs.positional('packagename', {
-            describe: 'package name of react native project',
-            default: '',
-            type: 'string',
-            normalize: true
-        });
-        yargs.positional('localrnruntimepath', {
-            describe: 'local path pointng to the app-rn-runtime folder',
-            default: '',
-            type: 'string',
-            normalize: true
-        });
-    }, args => ejectProject(args))
     .command('build', 'build the project to generate android and ios folders', yargs => {
             yargs.command('android [src] [options]', 'build for android', yargs => {
-                yargs.positional('src', {
-                    describe: 'path of rn project',
-                    default: './',
-                    type: 'string',
-                    normalize: true
-                });
-                yargs.option('aks', {
+                yargs.option('appId', {
+                    alias: 'appId',
+                    describe: 'unique application identifier',
+                    type: 'string'
+                })
+                .option('aks', {
                     alias: 'aKeyStore',
                     describe: '(Android) path to keystore',
                     type: 'string'
@@ -59,12 +38,6 @@ const args = require('yargs')
                 build(args)
             })
             .command('ios [src] [options]', 'build for iOS', yargs => {
-                yargs.positional('src', {
-                    describe: 'path of rn project',
-                    default: './',
-                    type: 'string',
-                    normalize: true
-                });
                 yargs.option('ic', {
                     alias: 'iCertificate',
                     describe: '(iOS) path of p12 certificate to use',
@@ -89,11 +62,33 @@ const args = require('yargs')
                 args.platform = 'ios';
                 build(args)
             })
+            yargs.positional('src', {
+                describe: 'path of rn project',
+                default: './',
+                type: 'string',
+                normalize: true
+            })
+            .option('dest', {
+                alias: 'dest',
+                describe: 'dest folder where the react native project will be extracted to',
+                type: 'string'
+            })
             .option('p', {
                 alias: 'packageType',
                 describe: 'development (or) release',
                 default: 'development',
                 choices: ['development', 'production']
+            })
+            .option('localrnruntimepath', {
+                alias: 'localrnruntimepath',
+                describe: 'local path pointing to the app-rn-runtime folder',
+                type: 'string'
+            })
+            .option('auto-eject', {
+                alias: 'autoEject',
+                describe: 'If set to true then project will be eject automatically without prompting any confirmations',
+                default: false,
+                type: 'boolean'
             })
     })
     .help('h')

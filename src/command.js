@@ -4,18 +4,25 @@ const logger = require('./logger');
 const plist = require('plist');
 const path = require('path');
 const android = require('./android');
+const { showConfirmation } = require('./requirements');
+
 const {
     exec
 } = require('./exec');
 
-const { 
+const {
     hasValidNodeVersion
  } = require('./requirements');
 
-const config = require('./config');
-const { invokeiosBuild } = require('./ios');
+ const config = require('./config');
+ const { invokeiosBuild } = require('./ios');
 const { resolve } = require('path');
-const loggerLabel = 'wm-rn-cli';
+const loggerLabel = 'wm-reactnative-cli';
+
+function getFileSize(path) {
+    const stats = path && fs.statSync(path);
+    return (stats && stats['size']) || 0;
+}
 
 function updateExpoplistFile() {
     const iosPath =  config.src + 'ios';
@@ -44,10 +51,17 @@ async function updatePackageJsonFile(path) {
                 throw error;
             }
             var jsonData = JSON.parse(data);
-            // jsonData['main'] = "index";
-            jsonData.dependencies['@react-native-async-storage/async-storage'] = '^1.15.5';
-            jsonData.dependencies["react-native-safe-area-context"] = "^3.1.9";
-            jsonData.dependencies["@react-native-community/cli"] = "^5.0.1";
+            Object.assign(jsonData.dependencies, {
+                "@react-native-async-storage/async-storage": "^1.15.5",
+                "@react-native-community/datetimepicker": "^3.5.2",
+                "@react-native-community/slider": "^3.0.3",
+                "@react-native-picker/picker": "^1.16.3",
+                "react-native-safe-area-context": "^3.1.9",
+            });
+            jsonData['main'] = "index";
+            // jsonData.dependencies['@react-native-async-storage/async-storage'] = '^1.15.5';
+            // jsonData.dependencies["react-native-safe-area-context"] = "^3.1.9";
+            // jsonData.dependencies["@react-native-community/cli"] = "^5.0.1";
             // TODO: check for version where to give
             // jsonData.dependencies["@wavemaker/app-rn-runtime"] = "^10.7.3-next.23051";
 
@@ -60,8 +74,8 @@ async function updatePackageJsonFile(path) {
                     throw error;
                 }
                 console.log('updated package.json file');
+                resolve('success');
             });
-            resolve('success');
         })
     // }
 } catch (e) {
@@ -70,126 +84,77 @@ async function updatePackageJsonFile(path) {
 })
 }
 
-async function updateAppJsonFile(path, packageName, appName) {
+async function updateAppJsonFile(content, appId, src) {
     return await new Promise(resolve => {
         try {
-
-    if (fs.existsSync(path)) {
-        fs.readFile(path, async function(error, data) {
-            if (error) {
-                throw error;
+            const path = (src || config.src) + 'app.json';
+            if (fs.existsSync(path)) {
+                fs.readFile(path, async function(error, data) {
+                    if (error) {
+                        throw error;
+                    }
+                    var jsonData = JSON.parse(data);
+                    if (content) {
+                        Object.assign(jsonData['expo'], content);
+                    }
+                    if (appId) {
+                        jsonData['expo']['android']['package'] = appId;
+                        jsonData['expo']['ios']['bundleIdentifier'] = appId;
+                    }
+                    await fs.writeFile(path, JSON.stringify(jsonData), error => {
+                        if (error) {
+                            throw error;
+                        }
+                        resolve('success');
+                        console.log('updated app.json file');
+                    })
+                });
             }
-            var jsonData = JSON.parse(data);
-            jsonData['expo']['android']['package'] = packageName;
-            jsonData['expo']['ios']['bundleIdentifier'] = packageName;
-            jsonData['expo']['name'] = appName;
-            jsonData['expo']['slug'] = appName;
-            await fs.writeFile(path, JSON.stringify(jsonData), error => {
-                if (error) {
-                    throw error;
-                }
-                resolve('success');
-                console.log('updated app.json file');
-            })
-        });
+        } catch (e) {
+            resolve('error', e);
         }
-    } catch (e) {
-        resolve('error', e);
-    }
-})
-}
-
-function setDebugFlagInGradle(content) {
-    const newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
-        entryFile: "index.js",
-        bundleAssetName: "index.android.bundle",
-        bundleInDebug: true,
-        bundleInRelease: false,`);
-
-	return newContent;
-}
-function setReleaseFlagInGradle(content) {
-    const newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
-        entryFile: "index.js",
-        bundleAssetName: "index.android.bundle",
-        bundleInDebug: false,
-        bundleInRelease: true,`);
-
-	return newContent;
-}
-
-async function updateAndroidBuildGradleFile(type) {
-    const path = config.src + 'android/app/build.gradle';
-    let data = fs.readFileSync(path, 'utf8');
-    console.log(data);
-
-    let content = fs.readFileSync(path, 'utf8');
-    content = type === 'production' ? setReleaseFlagInGradle(content) : setDebugFlagInGradle(content);
-    fs.writeFileSync(path, content);
-}
-
-async function waitForInfoplistToUpdate() {
-    return await new Promise(resolve => {
-        try {
-        fs.readFile('/Users/bandhavyav/Projects/rn-build-apps/output/mysamplernappmaster1.xcarchive/Info.plist', async function (err, data) {
-            const content = data.toString().replace('<key>ApplicationProperties</key>',
-                `<key>compileBitcode</key>
-            <true/>
-            <key>provisioningProfiles</key>
-            <dict>
-                <key>com.wmapp.myrn</key>
-                <string>xxxx</string>
-            </dict>
-            <key>ApplicationProperties</key>
-            `);
-            console.log('test ...');
-            await fs.writeFile('/Users/bandhavyav/Projects/rn-build-apps/output/mysamplernappmaster1.xcarchive/Info.plist', Buffer.from(content));
-            resolve('success');
-        });
-    } catch(e) {
-        resolve('error');
-        throw e;
-    }
-    });
+    })
 }
 
  async function build(args) {
-    config.buildType = args.platform;
-    args.src = path.resolve(args.src) + '/';
-    config.src = args.src;
-   
-    try {
-        if (config.buildType === 'android') {
-            // todo: mkdir assets
-            // if (!fs.existsSync(config.src + 'android/app/src/main/assets')) {
-            //     await execa('mkdir', ['android/app/src/main/assets'], {
-            //         cwd: config.src
-            //     });
-            // }
-            // await execa('npx', ['react-native', 'bundle', '--platform', 'android', '--dev', 'false', '--entry-file', 'index.js', '--bundle-output', 'android/app/src/main/assets/index.android.bundle', '--assets-dest', 'android/app/src/main/res'], {
-            //     cwd: config.src
-            // });
-            // console.log('before run android');
-            // await execa('react-native', ['start'], {
-            //     cwd: config.src
-            // });
-            await execa('react-native', ['run-android'], {
-                cwd: config.src
-            });
-            console.log('after run android start');
-            if (args.packageType === 'production') {
-                await updateAndroidBuildGradleFile(args.packageType);
-                config.keystoreDetails = {
-                    keyStore: args.aKeyStore,
-                    storePassword: args.aStorePassword,
-                    keyAlias: args.aKeyAlias,
-                    keyPassword: args.aKeyPassword
-                }
-                // TODO: steps
-                await android.generateSignedApk();
+    if (args.dest) {
+        args.dest = path.resolve(args.dest) + '/';
+        // Do not eject again if its already ejected in dest folder
+        if (!fs.existsSync(args.dest + 'app.json')) {
+            await ejectProject(args);
+        } else {
+            config.metaData = await config.setMetaInfo(args.dest);
+            if (!config.metaData.expo.ejected) {
+                await ejectProject(args);
             }
-        } else
-         if (config.buildType === 'ios') {
+        }
+    } else {
+        await ejectProject(args);
+    }
+
+    config.buildType = args.platform;
+    if (args.dest) {
+        config.src = args.dest;
+    }
+    config.outputDirectory = config.src + 'output/';
+    fs.mkdirSync(config.outputDirectory, {
+        recursive: true
+    });
+    config.logDirectory = config.outputDirectory + 'logs/';
+    fs.mkdirSync(config.logDirectory, {
+        recursive: true
+    });
+    logger.setLogDirectory(config.logDirectory);
+    logger.info({
+        label: loggerLabel,
+        message: `Building at : ${config.src}`
+    });
+
+    try {
+        let result;
+        if (config.buildType === 'android') {
+            result = await android.invokeAndroidBuild(args);
+        } else if (config.buildType === 'ios') {
             updateExpoplistFile();
 
             await execa('pod', ['install'], {
@@ -198,8 +163,29 @@ async function waitForInfoplistToUpdate() {
             await execa('react-native', ['run-ios'], {
                 cwd: config.src
             });
-            await invokeiosBuild(args);
+            result = await invokeiosBuild(args);
         }
+        if (result.errors && result.errors.length) {
+            logger.error({
+                label: loggerLabel,
+                message: args.platform + ' build failed due to: \n\t' + result.errors.join('\n\t')
+            });
+        } else if (!result.success) {
+            logger.error({
+                label: loggerLabel,
+                message: args.platform + ' BUILD FAILED'
+            });
+        } else {
+            logger.info({
+                label: loggerLabel,
+                message: `${args.platform} BUILD SUCCEEDED. check the file at : ${result.output}.`
+            });
+            logger.info({
+                label: loggerLabel,
+                message: `File size : ${Math.round(getFileSize(result.output) * 100 / (1024 * 1024)) / 100} MB.`
+            });
+        }
+        return result;
     } catch(e) {
         console.log('error...');
         logger.error({
@@ -233,12 +219,12 @@ async function setupBuildDirectory(src, dest) {
 
 
 
-async function getDefaultDestination(projectDir, platform, packageName) {
+async function getDefaultDestination(appId) {
     // let data = fs.readFileSync(projectDir + 'config.xml').toString();
     // const config = et.parse(data);
     // const id = config.getroot().attrib['id'];
     // const version = config.getroot().attrib['version'];
-    const id = packageName;
+    const id = appId;
     const version = '1.0.0';
     const path = `${require('os').homedir()}/.wm-reactnative-cli/build/${id}/${version}/`;
     fs.mkdirSync(path, {
@@ -282,7 +268,7 @@ async function ejectProject(args) {
             if (!fs.existsSync(args.src)) {
                 fs.mkdirsSync(args.src);
             }
-    
+
             await exec('unzip', [
                 '-o',
                 zipFile,
@@ -293,12 +279,12 @@ async function ejectProject(args) {
         args.src = path.resolve(args.src) + '/';
 
         if(!args.dest) {
-            args.dest = await getDefaultDestination(args.src, args.platform, args.packagename);
+            args.dest = await getDefaultDestination(args.appId);
         }
         args.dest = path.resolve(args.dest)  + '/';
-        if (!isZipFile) {
-            args.dest += folderName + '/';
-        }
+        // if (!isZipFile) {
+        //     args.dest += folderName + '/';
+        // }
         if(args.src === args.dest) {
             logger.error({
                 label: loggerLabel,
@@ -306,10 +292,11 @@ async function ejectProject(args) {
             });
         }
         await setupBuildDirectory(args.src, args.dest);
-        if (isZipFile) {
-            args.dest += folderName + '/';
-        }
         config.src = args.dest;
+        logger.info({
+            label: loggerLabel,
+            message: 'destination folder where app is build at ' + args.dest
+        })
     if (!args.buildType) {
         args.buildType = 'android';
     }
@@ -317,8 +304,11 @@ async function ejectProject(args) {
 
     if (!await hasValidNodeVersion(config.src)) {
         return false;
-    } 
-    await updateAppJsonFile(config.src + 'app.json', args.packagename, folderName);
+    }
+    await updateAppJsonFile({
+        'name': folderName,
+        'slug': folderName
+    }, args.appId, args.src);
     await updatePackageJsonFile(config.src + 'package.json');
     // yarn install --network-timeout=30000
     await exec('yarn', ['install'], {
@@ -330,8 +320,8 @@ async function ejectProject(args) {
         if (fs.existsSync(linkFolderPath)) {
             fs.removeSync(linkFolderPath);
         }
-        fs.mkdirsSync(linkFolderPath);
-        fs.copySync(args.localrnruntimepath, linkFolderPath);
+        await fs.mkdirsSync(linkFolderPath);
+        await fs.copySync(args.localrnruntimepath, linkFolderPath);
         console.log('copied the app-rn-runtime folder');
     }
     await execa('git', ['init'], {
@@ -341,6 +331,7 @@ async function ejectProject(args) {
     await execa('expo', ['eject'], {
         cwd: config.src
     });
+    await updateAppJsonFile({ejected: true});
     console.log('after expo eject');
 }catch (e) {
     logger.error({
