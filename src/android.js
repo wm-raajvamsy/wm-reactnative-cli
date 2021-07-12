@@ -141,6 +141,15 @@ async function updateAndroidBuildGradleFile(type) {
     await fs.writeFileSync(path, content);
 }
 
+async function updateSettingsGradleFile(appName) {
+    const path = config.src + 'android/settings.gradle';
+    let content = fs.readFileSync(path, 'utf8');
+    if (content.search(/^rootProject.name = \'\'/gm) > -1) {
+        content = content.replace(/^rootProject.name = \'\'/gm, `rootProject.name = ${appName}`);
+        await fs.writeFileSync(path, content);
+    }
+}
+
 async function invokeAndroidBuild(args) {
     let keyStore, storePassword, keyAlias,keyPassword;
 
@@ -180,6 +189,12 @@ async function invokeAndroidBuild(args) {
             label: loggerLabel,
             message: 'Updated build.gradle file with debug configuration'
         });
+        if (!Object.keys(config.metaData).length) {
+            config.metaData = await config.setMetaInfo(config.src);
+        }
+        const appName = config.metaData.expo.name;
+
+        updateSettingsGradleFile(appName);
         await execa('./gradlew', ['clean'], {
             cwd: config.src + 'android'
         });
@@ -190,11 +205,7 @@ async function invokeAndroidBuild(args) {
             label: loggerLabel,
             message: 'build completed'
         });
-        const output =  args.dest + 'output/android/';
-        if (!Object.keys(config.metaData).length) {
-            config.metaData = await config.setMetaInfo(config.src);
-        }
-        const appName = config.metaData.expo.name;
+        const output = args.dest + 'output/android/';
         const outputFilePath = `${output}${appName}(${config.metaData.expo.version}).${args.packageType}.apk`;
         const apkPath = findFile(`${args.dest}/android/app/build/outputs/apk/${args.packageType === 'production' ? 'release' : 'debug'}`, /\.apk?/);
         fs.mkdirSync(output, {recursive: true});

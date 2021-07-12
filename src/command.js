@@ -51,24 +51,7 @@ async function updatePackageJsonFile(path) {
                 throw error;
             }
             var jsonData = JSON.parse(data);
-            Object.assign(jsonData.dependencies, {
-                "@react-native-async-storage/async-storage": "^1.15.5",
-                "@react-native-community/datetimepicker": "^3.5.2",
-                "@react-native-community/slider": "^3.0.3",
-                "@react-native-picker/picker": "^1.16.3",
-                "react-native-safe-area-context": "^3.1.9",
-            });
             jsonData['main'] = "index";
-            // jsonData.dependencies['@react-native-async-storage/async-storage'] = '^1.15.5';
-            // jsonData.dependencies["react-native-safe-area-context"] = "^3.1.9";
-            // jsonData.dependencies["@react-native-community/cli"] = "^5.0.1";
-            // TODO: check for version where to give
-            // jsonData.dependencies["@wavemaker/app-rn-runtime"] = "^10.7.3-next.23051";
-
-            // if (jsonData.devDependencies['@babel/core']) {
-            //     delete jsonData.devDependencies['@babel/core']
-            // }
-
             await fs.writeFile(path, JSON.stringify(jsonData), error => {
                 if (error) {
                     throw error;
@@ -117,6 +100,12 @@ async function updateAppJsonFile(content, appId, src) {
 }
 
  async function build(args) {
+     if (!args.autoEject) {
+        const response = await showConfirmation('Would you like to eject the expo project (yes/no) ?');
+        if (response !== 'y' && response !== 'yes') {
+            process.exit();
+        }
+     }
     if (args.dest) {
         args.dest = path.resolve(args.dest) + '/';
         // Do not eject again if its already ejected in dest folder
