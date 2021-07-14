@@ -34,7 +34,7 @@ async function generateSignedApk(keyStore, storePassword, keyAlias, keyPassword)
     const keystoreName = namesArr[namesArr.length - 1];
     const filepath = config.src + 'android/app/' + keystoreName;
 
-    fs.copyFileSync(ksData.keyStore, filepath);
+    fs.copyFileSync(keyStore, filepath);
 
     // edit file android/gradle.properties
     const gradlePropsPath = config.src + 'android/gradle.properties';
@@ -92,6 +92,10 @@ async function generateAab() {
     }
     catch(e) {
         console.error('error generating release apk. ', e);
+        return {
+            success: false,
+            errors: e
+        }
     }
 }
 
@@ -105,17 +109,25 @@ function setDebugFlagInGradle(content) {
         devDisabledInDebug: true,`);
     } else {
         newContent = content.replace(/bundleInDebug\: false/gm, `bundleInDebug: true`)
-        .replace(/devDisabledInDebug\: false/gm, `devDisabledInDebug: true`);
+            .replace(/devDisabledInDebug\: false/gm, `devDisabledInDebug: true`)
+            .replace(/bundleInRelease\: true/gm, `bundleInRelease: false`);
+
     }
 	return newContent;
 }
 function setReleaseFlagInGradle(content) {
-    const newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
+    let newContent;
+    if (content.search(`entryFile: "index.js"`) === -1) {
+        newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
         entryFile: "index.js",
         bundleAssetName: "index.android.bundle",
         bundleInRelease: true,`);
-
-	return newContent;
+    } else {
+        newContent = content.replace(/bundleInDebug\: true/gm, `bundleInDebug: false,
+        bundleInRelease: true,`).replace(/devDisabledInDebug\: true/gm, ``)
+            .replace(/bundleInRelease\: false/gm, `bundleInRelease: true`);
+    }
+    return newContent;
 }
 
 const endWith = (str, suffix) => {
@@ -173,6 +185,9 @@ async function invokeAndroidBuild(args) {
         }
     }
 
+    const appName = config.metaData.name;
+    await updateSettingsGradleFile(appName);
+
     if (args.packageType === 'production') {
         const errors = validateForAndroid(keyStore, storePassword, keyAlias, keyPassword);
         if (errors.length > 0) {
@@ -189,12 +204,7 @@ async function invokeAndroidBuild(args) {
             label: loggerLabel,
             message: 'Updated build.gradle file with debug configuration'
         });
-        if (!Object.keys(config.metaData).length) {
-            config.metaData = await config.setMetaInfo(config.src);
-        }
-        const appName = config.metaData.expo.name;
 
-        updateSettingsGradleFile(appName);
         await execa('./gradlew', ['clean'], {
             cwd: config.src + 'android'
         });
@@ -206,7 +216,7 @@ async function invokeAndroidBuild(args) {
             message: 'build completed'
         });
         const output = args.dest + 'output/android/';
-        const outputFilePath = `${output}${appName}(${config.metaData.expo.version}).${args.packageType}.apk`;
+        const outputFilePath = `${output}${appName}(${config.metaData.version}).${args.packageType}.apk`;
         const apkPath = findFile(`${args.dest}/android/app/build/outputs/apk/${args.packageType === 'production' ? 'release' : 'debug'}`, /\.apk?/);
         fs.mkdirSync(output, {recursive: true});
         fs.copyFileSync(apkPath, outputFilePath);
