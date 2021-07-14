@@ -7,7 +7,7 @@ const logger = require('./logger');
 const {
     exec
 } = require('./exec');
-const loggerLabel = 'cordova-cli-requirements';
+const loggerLabel = 'rn-cli-requirements';
 const VERSIONS = {
     'NODE': '12.0.0',
     'POD' : '1.9.0',
@@ -26,10 +26,10 @@ async function checkAvailability(cmd, transformFn) {
             }
         }
         let output = (await exec(cmd, ['--version'])).join('');
-        
+
         if (transformFn) {
-            output = transformFn(output);	
-        }	
+            output = transformFn(output);
+        }
         // to just return version in x.x.x format
         let version = output.match(/[0-9]+\.[0-9\.]+/)[0];
 
@@ -91,7 +91,7 @@ async function checkForAndroidStudioAvailability() {
             'message': 'Found Android SDK manager at ' + sdkPath
         });
         try {
-            await exec(sdkPath, ['--list']); 
+            await exec(sdkPath, ['--list']);
         } catch(e) {
             console.warn(e);
         }
@@ -111,7 +111,7 @@ async function hasValidJavaVersion() {
         return false;
     }
 
-    const envVariable = process.env['JAVA_HOME']; 
+    const envVariable = process.env['JAVA_HOME'];
 
     if (!envVariable) {
         logger.error({
@@ -189,7 +189,7 @@ async function showConfirmation(message) {
             if (err) {
                 reject();
             }
-            resolve(result.confirm.toLowerCase());  
+            resolve(result.confirm.toLowerCase());
         });
     });
 }

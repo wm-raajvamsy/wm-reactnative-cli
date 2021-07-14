@@ -44,27 +44,24 @@ function updateExpoplistFile() {
 async function updatePackageJsonFile(path) {
     return await new Promise(resolve => {
         try {
-    // TODO add main: "index"
-    // if (fs.existsSync(path)) {
-        fs.readFile(path, async function(error, data) {
-            if (error) {
-                throw error;
-            }
-            var jsonData = JSON.parse(data);
-            jsonData['main'] = "index";
-            await fs.writeFile(path, JSON.stringify(jsonData), error => {
+            fs.readFile(path, async function(error, data) {
                 if (error) {
                     throw error;
                 }
-                console.log('updated package.json file');
-                resolve('success');
-            });
-        })
-    // }
-} catch (e) {
-    resolve('error', e);
-}
-})
+                var jsonData = JSON.parse(data);
+                jsonData['main'] = "index";
+                await fs.writeFile(path, JSON.stringify(jsonData), error => {
+                    if (error) {
+                        throw error;
+                    }
+                    console.log('updated package.json file');
+                    resolve('success');
+                });
+            })
+        } catch (e) {
+            resolve('error', e);
+        }
+    })
 }
 
 async function updateAppJsonFile(content, appId, src) {
@@ -106,14 +103,15 @@ async function updateAppJsonFile(content, appId, src) {
             process.exit();
         }
      }
-    if (args.dest) {
+     config.metaData = await readWmRNConfig(args.src);
+
+     if (args.dest) {
         args.dest = path.resolve(args.dest) + '/';
         // Do not eject again if its already ejected in dest folder
         if (!fs.existsSync(args.dest + 'app.json')) {
             await ejectProject(args);
         } else {
-            config.metaData = await config.setMetaInfo(args.dest);
-            if (!config.metaData.expo.ejected) {
+            if (!config.metaData.ejected) {
                 await ejectProject(args);
             }
         }
@@ -206,14 +204,8 @@ async function setupBuildDirectory(src, dest) {
     fs.copySync(src, dest);
 }
 
-
-
-async function getDefaultDestination(appId) {
-    // let data = fs.readFileSync(projectDir + 'config.xml').toString();
-    // const config = et.parse(data);
-    // const id = config.getroot().attrib['id'];
-    // const version = config.getroot().attrib['version'];
-    const id = appId;
+async function getDefaultDestination() {
+    const id = config.metaData.id;
     const version = '1.0.0';
     const path = `${require('os').homedir()}/.wm-reactnative-cli/build/${id}/${version}/`;
     fs.mkdirSync(path, {
@@ -238,6 +230,30 @@ async function getDefaultDestination(appId) {
         recursive: true
     });
     return dest;
+}
+
+async function readWmRNConfig(src) {
+    src = path.resolve(src) + '/';
+    let jsonPath = src + 'wm_rn_config.json';
+    let data = await fs.readFileSync(jsonPath);
+    return JSON.parse(data);
+}
+
+async function writeWmRNConfig(content) {
+    src = path.resolve(config.src) + '/';
+    let jsonPath = src + 'wm_rn_config.json';
+    let data = await fs.readFileSync(jsonPath);
+    data = JSON.parse(data);
+    if (content) {
+        Object.assign(data, content);
+    }
+    await fs.writeFile(jsonPath, JSON.stringify(data), error => {
+        if (error) {
+            throw error;
+        }
+        resolve('success');
+        console.log('updated app.json file');
+    })
 }
 
 // src points to unzip proj
@@ -271,9 +287,7 @@ async function ejectProject(args) {
             args.dest = await getDefaultDestination(args.appId);
         }
         args.dest = path.resolve(args.dest)  + '/';
-        // if (!isZipFile) {
-        //     args.dest += folderName + '/';
-        // }
+
         if(args.src === args.dest) {
             logger.error({
                 label: loggerLabel,
@@ -295,9 +309,9 @@ async function ejectProject(args) {
         return false;
     }
     await updateAppJsonFile({
-        'name': folderName,
-        'slug': folderName
-    }, args.appId, args.src);
+        'name': config.metaData.name,
+        'slug': config.metaData.name
+    }, config.metaData.id, args.src);
     await updatePackageJsonFile(config.src + 'package.json');
     // yarn install --network-timeout=30000
     await exec('yarn', ['install'], {
@@ -316,13 +330,13 @@ async function ejectProject(args) {
     await execa('git', ['init'], {
         cwd: config.src
     });
-    console.log('before expo eject');
+    console.log('invoking expo eject');
     await execa('expo', ['eject'], {
         cwd: config.src
     });
-    await updateAppJsonFile({ejected: true});
-    console.log('after expo eject');
-}catch (e) {
+    await writeWmRNConfig({ejected: true});
+    console.log('expo eject succeded');
+} catch (e) {
     logger.error({
         label: loggerLabel,
         message: args.platform + ' BUILD Failed. Due to :' + e
