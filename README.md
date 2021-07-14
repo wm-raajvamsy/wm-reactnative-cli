@@ -26,7 +26,7 @@ wm-reactnative android <src_dir> [additional_arguments]
 
 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
 |--|--|
-| **src_dir** | **DEFAULT:** current working directory.<br> Path to the reactnative zip (or) path to the reactnative project folder. |
+| **src_dir** | **DEFAULT:** current working directory.<br> Path to the reactnative expo zip (or) path to the reactnative expo project folder. |
 |**\-\-appId:** application id.|
 | **\-\-localrnruntimepath** |**OPTIONAL:** local app-rn-runtime path |
 |**\-\-dest**|**OPTIONAL:** directory where the app has to be copied and built. If it is not specified then .wm-reactnative-cli folder inside the home directory, will contain the build folders |
@@ -45,7 +45,7 @@ wm-reactnative build android "/path/to/src" --appId="app_id"
 ~~~
 ### Example 2
 ~~~
-wm-cordova build android "/path/to/src" \
+wm-reactnative build android "/path/to/src" \
 --dest="/path/to/dest" \
 --aKeyStore="/path/to/file.keystore" \
 --aStorePassword="store_password" \
@@ -73,7 +73,7 @@ wm-cordova build android "/path/to/src" \
 -   For development build, development certificate and development provisioning file are required.
 -   For production build, distribution certificate and distribution provisioning file are required.
 
-**NOTE:** Before building an app, please make sure that neither iPhone nor iPad is not connected to Mac. This is open [issue](https://github.com/apache/cordova-ios/issues/420) on cordova-ios.
+**NOTE:** Before building an app, please make sure that neither iPhone nor iPad is not connected to Mac.
 
 ### Command
 
@@ -82,7 +82,7 @@ wm-reactnative build ios <src_dir> [additional_arguments]
 
 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
 |--|--|
-| **src_dir** | **DEFAULT:** current working directory.<br> Path to the cordova zip (or) path to the cordova project folder. |
+| **src_dir** | **DEFAULT:** current working directory.<br> Path to the reactnative expo zip (or) path to the reactnative expo project folder. |
 |**\-\-appId:** application id.|
 | **\-\-localrnruntimepath** |**OPTIONAL:** local app-rn-runtime path |
 |**\-\-dest**|**OPTIONAL:** directory where the app has to be copied and built. If it is not specified then .wm-reactnative-cli folder inside the home directory, will contain the build folders |
@@ -98,7 +98,7 @@ wm-reactnative build ios <src_dir> [additional_arguments]
 
 
 ~~~
-wm-cordova build ios "/path/to/src" \
+wm-reactnative build ios "/path/to/src" \
 --iCertificate="/path/to/distribution.p12" \
 --iCertificatePassword="unlock_password" \
 --iProvisioningFile="/path/to/profile.mobileprovision" \
