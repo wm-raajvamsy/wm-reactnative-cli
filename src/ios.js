@@ -1,9 +1,7 @@
-const execa = require('execa');
 const fs = require('fs-extra');
 const logger = require('./logger');
 const config = require('./config');
 const path = require('path');
-const plist = require('plist');
 
 const {
     exec
@@ -24,9 +22,9 @@ async function importCertToKeyChain(keychainName, certificate, certificatePasswo
     let keychains = await exec('security', ['list-keychains', '-d', 'user'], {log: false});
     keychains = keychains.map(k => k.replace(/[\"\s]+/g, '')).filter(k => k !== '');
     await exec('security', ['list-keychains', '-d', 'user', '-s', keychainName, ...keychains], {log: false});
-    await exec('security', 
-        ['import',  
-        certificate,  
+    await exec('security',
+        ['import',
+        certificate,
         '-k', keychainName,
         '-P', certificatePassword,
         '-T', '/usr/bin/codesign',
@@ -84,31 +82,14 @@ async function getPackageType(provisionalFile) {
     }
     if (data.type === 'inhouse') {
         return 'enterprise';
-    } 
+    }
     if (data.type === 'adhoc') {
         return 'ad-hoc';
     }
     throw new Error('Not able find the type of provisioning file.');
 }
 
-function setMetaInfo() {
-    config.src = path.resolve(config.src) + '/';
-    const jsonPath = config.src + 'app.json';
-    let data = fs.readFileSync(jsonPath);
-    console.log(data);
-    config.metaData = JSON.parse(data);
-}
-
-function getAppName() {
-    return config.metaData['expo']['name'];
-}
-function getAppId() {
-    return config.metaData['expo']['ios']['bundleIdentifier'];
-}
-
 async function invokeiosBuild(args) {
-    setMetaInfo();
-
     const certificate = args.iCertificate;
     const certificatePassword = args.iCertificatePassword;
     const provisionalFile = args.iProvisioningFile;
@@ -146,13 +127,14 @@ async function invokeiosBuild(args) {
         })
         const targetProvisionsalPath = `${ppFolder}/${provisionuuid}.mobileprovision`;
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
-        // fs.copyFileSync(provisionalFile, targetProvisionsalPath);
-        // logger.info({
-        //     label: loggerLabel,
-        //     message: `copied provisionalFile (${provisionalFile}).`
-        // });
+
         try {
             await xcodebuild(args.iCodeSigningIdentity, provisionuuid, developmentTeamId);
+        } catch (e) {
+            return {
+                errors: e,
+                success: false
+            }
         } finally {
             await removeKeyChain();
         }
@@ -162,7 +144,7 @@ async function invokeiosBuild(args) {
 async function updateInfoPlist(appName, PROVISIONING_UUID) {
     return await new Promise(resolve => {
         try {
-        const appId = getAppId();
+        const appId = config.metaData.id;
 
         const infoPlistpath = config.src + 'ios/build/' + appName +'.xcarchive/Info.plist';
          fs.readFile(infoPlistpath, async function (err, data) {
@@ -186,22 +168,22 @@ async function updateInfoPlist(appName, PROVISIONING_UUID) {
 }
 
 async function xcodebuild(CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVELOPMENT_TEAM) {
-    const appName = getAppName();
-    await execa('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
+    const appName = config.metaData.name;
+    await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
         cwd: config.src + 'ios'
     });
 
-    await execa('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', '-archivePath', 'build/' + appName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
+    await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', '-archivePath', 'build/' + appName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
         cwd: config.src + 'ios'
     });
 
     const status = await updateInfoPlist(appName, PROVISIONING_UUID);
     if (status === 'success') {
-        await execa('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + appName + '.xcarchive', '-exportOptionsPlist', 'build/' + appName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
+        await exec('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + appName + '.xcarchive', '-exportOptionsPlist', 'build/' + appName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
             cwd: config.src + 'ios'
         });
     }
-    
+
 }
 
 module.exports = {
