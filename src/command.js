@@ -1,11 +1,9 @@
 const fs = require('fs-extra');
-const execa = require('execa');
 const logger = require('./logger');
 const plist = require('plist');
 const path = require('path');
 const android = require('./android');
 const { showConfirmation } = require('./requirements');
-
 const {
     exec
 } = require('./exec');
@@ -144,10 +142,10 @@ async function updateAppJsonFile(content, appId, src) {
         } else if (config.buildType === 'ios') {
             updateExpoplistFile();
 
-            await execa('pod', ['install'], {
+            await exec('pod', ['install'], {
                 cwd: config.src + 'ios'
             });
-            await execa('react-native', ['run-ios'], {
+            await exec('react-native', ['run-ios'], {
                 cwd: config.src
             });
             result = await invokeiosBuild(args);
@@ -327,15 +325,16 @@ async function ejectProject(args) {
         await fs.copySync(args.localrnruntimepath, linkFolderPath);
         console.log('copied the app-rn-runtime folder');
     }
-    await execa('git', ['init'], {
+    await exec('git', ['init'], {
         cwd: config.src
     });
     console.log('invoking expo eject');
-    await execa('expo', ['eject'], {
+    await exec('expo', ['eject'], {
         cwd: config.src
     });
-    await writeWmRNConfig({ejected: true});
     console.log('expo eject succeded');
+    await writeWmRNConfig({ejected: true});
+    console.log('write failed');
 } catch (e) {
     logger.error({
         label: loggerLabel,

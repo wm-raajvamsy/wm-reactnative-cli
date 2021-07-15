@@ -1,10 +1,9 @@
 const fs = require('fs-extra');
-const execa = require('execa');
 const logger = require('./logger');
-const plist = require('plist');
-const path = require('path');
 const config = require('./config');
-const exec = require('./exec');
+const {
+    exec
+} = require('./exec');
 
 const {
     validateForAndroid,
@@ -79,14 +78,14 @@ function setSigningConfigInGradle() {
 
 async function generateAab() {
     try {
-        await execa('./gradlew', ['clean'], {
+        await exec('./gradlew', ['clean'], {
             cwd: config.src + 'android'
         });
-        await execa('./gradlew', [':app:bundleRelease'], {
+        await exec('./gradlew', [':app:bundleRelease'], {
             cwd: config.src + 'android'
         });
 
-        await execa('react-native', ['run-android', '--variant=release'], {
+        await exec('react-native', ['run-android', '--variant=release'], {
             cwd: config.src
         });
     }
@@ -205,10 +204,10 @@ async function invokeAndroidBuild(args) {
             message: 'Updated build.gradle file with debug configuration'
         });
 
-        await execa('./gradlew', ['clean'], {
+        await exec('./gradlew', ['clean'], {
             cwd: config.src + 'android'
         });
-        await execa('./gradlew', ['assembleDebug'], {
+        await exec('./gradlew', ['assembleDebug'], {
             cwd: config.src + 'android'
         });
         logger.info({
