@@ -164,7 +164,7 @@ async function updateSettingsGradleFile(appName) {
 async function invokeAndroidBuild(args) {
     let keyStore, storePassword, keyAlias,keyPassword;
 
-    if (args.packageType === 'development' && !args.aKeyStore) {
+    if (args.buildType === 'development' && !args.aKeyStore) {
         keyStore = __dirname + '/../defaults/android-debug.keystore';
         keyAlias = 'androiddebugkey';
         keyPassword = 'android';
@@ -187,7 +187,7 @@ async function invokeAndroidBuild(args) {
     const appName = config.metaData.name;
     await updateSettingsGradleFile(appName);
 
-    if (args.packageType === 'production') {
+    if (args.buildType === 'production') {
         const errors = validateForAndroid(keyStore, storePassword, keyAlias, keyPassword);
         if (errors.length > 0) {
             return {
@@ -195,10 +195,10 @@ async function invokeAndroidBuild(args) {
                 errors: errors
             }
         }
-        await updateAndroidBuildGradleFile(args.packageType);
+        await updateAndroidBuildGradleFile(args.buildType);
         await generateSignedApk(keyStore, storePassword, keyAlias, keyPassword);
     } else {
-        await updateAndroidBuildGradleFile(args.packageType);
+        await updateAndroidBuildGradleFile(args.buildType);
         logger.info({
             label: loggerLabel,
             message: 'Updated build.gradle file with debug configuration'
@@ -215,8 +215,8 @@ async function invokeAndroidBuild(args) {
             message: 'build completed'
         });
         const output = args.dest + 'output/android/';
-        const outputFilePath = `${output}${appName}(${config.metaData.version}).${args.packageType}.apk`;
-        const apkPath = findFile(`${args.dest}/android/app/build/outputs/apk/${args.packageType === 'production' ? 'release' : 'debug'}`, /\.apk?/);
+        const outputFilePath = `${output}${appName}(${config.metaData.version}).${args.buildType}.apk`;
+        const apkPath = findFile(`${args.dest}/android/app/build/outputs/apk/${args.buildType === 'production' ? 'release' : 'debug'}`, /\.apk?/);
         fs.mkdirSync(output, {recursive: true});
         fs.copyFileSync(apkPath, outputFilePath);
         return {

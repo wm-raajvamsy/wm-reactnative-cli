@@ -156,7 +156,7 @@ function validateForAndroid(keyStore, storePassword, keyAlias, keyPassword) {
     return errors;
 }
 
-function validateForIos(certificate, password, provisionalFilePath, packageType) {
+function validateForIos(certificate, password, provisionalFilePath, buildType) {
     let errors = [];
     if (!(certificate && fs.existsSync(certificate))) {
         errors.push(`p12 certificate does not exists : ${certificate}`);
@@ -167,7 +167,7 @@ function validateForIos(certificate, password, provisionalFilePath, packageType)
     if (!(provisionalFilePath && fs.existsSync(provisionalFilePath))) {
         errors.push(`Provisional file does not exists : ${provisionalFilePath}`);
     }
-    if (!packageType) {
+    if (!buildType) {
         errors.push('Package type is required.');
     }
     return errors;

@@ -93,13 +93,13 @@ async function invokeiosBuild(args) {
     const certificate = args.iCertificate;
     const certificatePassword = args.iCertificatePassword;
     const provisionalFile = args.iProvisioningFile;
-    const packageType = args.packageType;
+    const buildType = args.buildType;
     if (!await hasValidNodeVersion() || !await isGitInstalled() || !await isCocoaPodsIstalled()) {
         return {
             success: false
         }
     }
-    const errors = validateForIos(certificate, certificatePassword, provisionalFile, packageType);
+    const errors = validateForIos(certificate, certificatePassword, provisionalFile, buildType);
         if (errors.length > 0) {
             return {
                 success: false,
@@ -115,7 +115,7 @@ async function invokeiosBuild(args) {
             label: loggerLabel,
             message: `provisional UUID : ${provisionuuid}`
         });
-        const codeSignIdentity = packageType === 'production' ? "iPhone Distribution" : "iPhone Developer";
+        const codeSignIdentity = buildType === 'production' ? "iPhone Distribution" : "iPhone Developer";
         const developmentTeamId = await extractTeamId(provisionalFile);
         logger.info({
             label: loggerLabel,
