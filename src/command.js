@@ -4,6 +4,8 @@ const plist = require('plist');
 const path = require('path');
 const android = require('./android');
 const { showConfirmation } = require('./requirements');
+const execa = require('execa');
+
 const {
     exec
 } = require('./exec');
@@ -102,22 +104,16 @@ async function updateAppJsonFile(content, appId, src) {
         }
      }
      config.metaData = await readWmRNConfig(args.src);
-
+     config.platform = args.platform;
      if (args.dest) {
         args.dest = path.resolve(args.dest) + '/';
-        // Do not eject again if its already ejected in dest folder
-        if (!fs.existsSync(args.dest + 'app.json')) {
+        if (!config.metaData.ejected) {
             await ejectProject(args);
-        } else {
-            if (!config.metaData.ejected) {
-                await ejectProject(args);
-            }
         }
     } else {
         await ejectProject(args);
     }
 
-    config.buildType = args.platform;
     if (args.dest) {
         config.src = args.dest;
     }
@@ -137,16 +133,13 @@ async function updateAppJsonFile(content, appId, src) {
 
     try {
         let result;
-        if (config.buildType === 'android') {
+        if (config.platform === 'android') {
             result = await android.invokeAndroidBuild(args);
-        } else if (config.buildType === 'ios') {
+        } else if (config.platform === 'ios') {
             updateExpoplistFile();
 
-            await exec('pod', ['install'], {
+            await execa('pod', ['install'], {
                 cwd: config.src + 'ios'
-            });
-            await exec('react-native', ['run-ios'], {
-                cwd: config.src
             });
             result = await invokeiosBuild(args);
         }
@@ -178,6 +171,10 @@ async function updateAppJsonFile(content, appId, src) {
             message: 'BUILD Failed. Due to :' + e
         });
         console.error(e);
+        return {
+            success : false,
+            errors: e
+         };
     }
 }
 
@@ -249,8 +246,7 @@ async function writeWmRNConfig(content) {
         if (error) {
             throw error;
         }
-        resolve('success');
-        console.log('updated app.json file');
+        console.log('updated wm_rn_config.json file');
     })
 }
 
@@ -298,9 +294,10 @@ async function ejectProject(args) {
             label: loggerLabel,
             message: 'destination folder where app is build at ' + args.dest
         })
-    if (!args.buildType) {
-        args.buildType = 'android';
+    if (!args.platform) {
+        args.platform = 'android';
     }
+    config.platform = args.platform;
     config.buildType = args.buildType;
 
     if (!await hasValidNodeVersion(config.src)) {
@@ -309,7 +306,7 @@ async function ejectProject(args) {
     await updateAppJsonFile({
         'name': config.metaData.name,
         'slug': config.metaData.name
-    }, config.metaData.id, args.src);
+    }, config.metaData.id, config.src);
     await updatePackageJsonFile(config.src + 'package.json');
     // yarn install --network-timeout=30000
     await exec('yarn', ['install'], {
@@ -329,12 +326,11 @@ async function ejectProject(args) {
         cwd: config.src
     });
     console.log('invoking expo eject');
-    await exec('expo', ['eject'], {
+    await execa('expo', ['eject'], {
         cwd: config.src
     });
     console.log('expo eject succeded');
     await writeWmRNConfig({ejected: true});
-    console.log('write failed');
 } catch (e) {
     logger.error({
         label: loggerLabel,
