@@ -81,9 +81,18 @@ const args = require('yargs')
             })
             .option('bt', {
                 alias: 'buildType',
-                describe: 'development (or) release',
-                default: 'development',
-                choices: ['development', 'production']
+                describe: 'development (or) debug (or) production (or) release',
+                default: 'debug',
+                coerce: (val) => {
+                    if (val === 'development') {
+                        return 'debug';
+                    }
+                    if (val === 'production') {
+                        return 'release';
+                    }
+                    return val;
+                },
+                choices: ['development', 'debug', 'production', 'release']
             })
             .option('localrnruntimepath', {
                 alias: 'localrnruntimepath',

@@ -74,21 +74,6 @@ async function getUsername() {
     return content[0];
 }
 
-async function getPackageType(provisionalFile) {
-    const data = await pparse(provisionalFile);
-    //data.
-    if (data.type === 'appstore') {
-        return 'app-store';
-    }
-    if (data.type === 'inhouse') {
-        return 'enterprise';
-    }
-    if (data.type === 'adhoc') {
-        return 'ad-hoc';
-    }
-    throw new Error('Not able find the type of provisioning file.');
-}
-
 async function invokeiosBuild(args) {
     const certificate = args.iCertificate;
     const certificatePassword = args.iCertificatePassword;
@@ -115,7 +100,7 @@ async function invokeiosBuild(args) {
             label: loggerLabel,
             message: `provisional UUID : ${provisionuuid}`
         });
-        const codeSignIdentity = buildType === 'production' ? "iPhone Distribution" : "iPhone Developer";
+        const codeSignIdentity = buildType === 'release' ? "iPhone Distribution" : "iPhone Developer";
         const developmentTeamId = await extractTeamId(provisionalFile);
         logger.info({
             label: loggerLabel,
@@ -129,7 +114,7 @@ async function invokeiosBuild(args) {
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
 
         try {
-            await xcodebuild(args.iCodeSigningIdentity, provisionuuid, developmentTeamId);
+            await xcodebuild(codeSignIdentity, provisionuuid, developmentTeamId);
         } catch (e) {
             return {
                 errors: e,
@@ -169,21 +154,27 @@ async function updateInfoPlist(appName, PROVISIONING_UUID) {
 
 async function xcodebuild(CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVELOPMENT_TEAM) {
     const appName = config.metaData.name;
-    await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
-        cwd: config.src + 'ios'
-    });
-
-    await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', '-archivePath', 'build/' + appName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
-        cwd: config.src + 'ios'
-    });
-
-    const status = await updateInfoPlist(appName, PROVISIONING_UUID);
-    if (status === 'success') {
-        await exec('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + appName + '.xcarchive', '-exportOptionsPlist', 'build/' + appName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
+    try {
+        await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
             cwd: config.src + 'ios'
         });
-    }
 
+        await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', '-archivePath', 'build/' + appName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
+            cwd: config.src + 'ios'
+        });
+
+        const status = await updateInfoPlist(appName, PROVISIONING_UUID);
+        if (status === 'success') {
+            await exec('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + appName + '.xcarchive', '-exportOptionsPlist', 'build/' + appName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
+                cwd: config.src + 'ios'
+            });
+        }
+    } catch (e) {
+        return {
+            errors: e,
+            success: false
+        }
+    }
 }
 
 module.exports = {
