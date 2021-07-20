@@ -11,7 +11,11 @@ const {
 } = require('./exec');
 
 const {
-    hasValidNodeVersion
+    hasValidNodeVersion,
+    hasValidJavaVersion,
+    checkForGradleAvailability,
+    isGitInstalled,
+    hasYarnPackage,
  } = require('./requirements');
 
  const config = require('./config');
@@ -300,15 +304,17 @@ async function ejectProject(args) {
     config.platform = args.platform;
     config.buildType = args.buildType;
 
-    if (!await hasValidNodeVersion(config.src)) {
-        return false;
+    if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
+        !await checkForGradleAvailability() || !await isGitInstalled()) {
+        return {
+            success: false
+        }
     }
     await updateAppJsonFile({
         'name': config.metaData.name,
         'slug': config.metaData.name
     }, config.metaData.id, config.src);
     await updatePackageJsonFile(config.src + 'package.json');
-    // yarn install --network-timeout=30000
     await exec('yarn', ['install'], {
         cwd: config.src
     });
@@ -322,6 +328,7 @@ async function ejectProject(args) {
         await fs.copySync(args.localrnruntimepath, linkFolderPath);
         console.log('copied the app-rn-runtime folder');
     }
+    // expo eject checks whether src is a git repo or not
     await exec('git', ['init'], {
         cwd: config.src
     });
