@@ -174,9 +174,7 @@ async function invokeAndroidBuild(args) {
         keyPassword = args.aKeyPassword
     }
 
-    if (!await hasValidNodeVersion() || !await hasValidJavaVersion() ||
-        !await checkForGradleAvailability() || !await isGitInstalled() ||
-        !await checkForAndroidStudioAvailability()) {
+    if (!await checkForAndroidStudioAvailability()) {
         return {
             success: false
         }
