@@ -207,3 +207,4 @@ module.exports = {
     checkForGradleAvailability: checkForGradleAvailability
 }
 // TODO check for expo-cli, react-native
+// TODO: support for multiple react native versions.

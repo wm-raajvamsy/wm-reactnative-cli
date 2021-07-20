@@ -4,6 +4,11 @@ A command line utility to build react native apps created using WaveMaker produc
 
 The main goal of wm-reactnative-cli is to simplify generation of APK or IPA for WaveMaker developers. ```wm-reactnative-cli``` combines multiple react-native commands into a single command. First, one has to make sure all the required hardware and software are available and installed. Then execute the command with the appropriate values for arguments.
 
+### Command to Install
+
+~~~
+npm install -g https://github.com/wavemaker/wm-reactnative-cli
+~~~
 
 ## Android Build
 
@@ -21,7 +26,7 @@ The main goal of wm-reactnative-cli is to simplify generation of APK or IPA for 
 
 ### Command
 
-wm-reactnative android <src_dir> [additional_arguments]
+wm-reactnative build android <src_dir> [additional_arguments]
 
 
 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
@@ -34,7 +39,7 @@ wm-reactnative android <src_dir> [additional_arguments]
 |**\-\-aStorePassword**|Password to key store|
 |**\-\-aKeyAlias**|Alias name of the key|
 |**\-\-aKeyPassword**|Key Password|
-|**\-\-packageType**|**DEFAULT:** development<br>development or production<br>Use ‘production’ with keystore specified.|
+|**\-\-buildType**|**DEFAULT:** development<br>development or production<br>Use ‘production’ with keystore specified.|
 
 
 ### Example 1
@@ -50,7 +55,7 @@ wm-reactnative build android "/path/to/src" \
 --aStorePassword="store_password" \
 --aKeyAlias="key_alias_name" \
 --aKeyPassword="key" \
---packageType="production"
+--buildType="production"
 --auto-eject=true
 ~~~
 

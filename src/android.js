@@ -7,10 +7,6 @@ const {
 
 const {
     validateForAndroid,
-    hasValidNodeVersion,
-    hasValidJavaVersion,
-    checkForGradleAvailability,
-    isGitInstalled,
     checkForAndroidStudioAvailability
  } = require('./requirements');
 
@@ -229,9 +225,9 @@ async function invokeAndroidBuild(args) {
 
     let bundlePath = null;
     if (args.packageType === 'bundle') {
-        bundlePath = findFile(`${args.dest}/android/app/build/outputs/bundle/${buildType}`, /\.aab?/);
+        bundlePath = findFile(`${args.dest}android/app/build/outputs/bundle/${buildType}`, /\.aab?/);
     } else {
-        bundlePath = findFile(`${args.dest}/android/app/build/outputs/apk/${args.buildType}`, /\.apk?/);
+        bundlePath = findFile(`${args.dest}android/app/build/outputs/apk/${args.buildType}`, /\.apk?/);
     }
     fs.mkdirSync(output, {recursive: true});
     fs.copyFileSync(bundlePath, outputFilePath);
