@@ -58,11 +58,6 @@ const args = require('yargs')
                     alias: 'iProvisioningFile',
                     describe: '(iOS) path of the provisional profile to use',
                     type: 'string'
-                })
-                .option('icsi', {
-                    alias: 'iCodeSigningIdentity',
-                    describe: 'Common Name of the Developer iOS certificate stored in the Keychain Access application',
-                    type: 'string'
                 });
             }, args => {
                 args.platform = 'ios';

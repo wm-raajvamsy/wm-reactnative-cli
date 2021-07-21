@@ -34,14 +34,10 @@ function updateExpoplistFile() {
         return v.endsWith('.xcodeproj') || v.endsWith('.xcworkspace');
     });
     filename = filename[0].replace('.xcworkspace', '').replace('.xcodeproj', '');
-    console.log(filename);
-// TODO add check if this already exists
     const plistPath = iosPath + '/' + filename + '/Supporting/Expo.plist';
 
     var obj = plist.parse(fs.readFileSync(plistPath, 'utf8'));
-    console.log(JSON.stringify(obj));
-    obj['EXUpdatesURL'] = 'https://wavemaker.com';
-    console.log(JSON.stringify(obj));
+    obj['EXUpdatesURL'] = 'https://wavemaker.com'; // update with some dummy url
     fs.writeFileSync(plistPath, plist.build(obj))
 }
 
@@ -58,7 +54,10 @@ async function updatePackageJsonFile(path) {
                     if (error) {
                         throw error;
                     }
-                    console.log('updated package.json file');
+                    logger.info({
+                        'label': loggerLabel,
+                        'message': 'updated package.json file'
+                    });
                     resolve('success');
                 });
             })
@@ -90,7 +89,10 @@ async function updateAppJsonFile(content, appId, src) {
                             throw error;
                         }
                         resolve('success');
-                        console.log('updated app.json file');
+                        logger.info({
+                            'label': loggerLabel,
+                            'message': 'updated app.json file'
+                        });
                     })
                 });
             }
@@ -109,13 +111,18 @@ async function updateAppJsonFile(content, appId, src) {
      }
      config.metaData = await readWmRNConfig(args.src);
      config.platform = args.platform;
+     let response;
      if (args.dest) {
         args.dest = path.resolve(args.dest) + '/';
         if (!config.metaData.ejected) {
-            await ejectProject(args);
+            response = await ejectProject(args);
         }
     } else {
-        await ejectProject(args);
+        response = await ejectProject(args);
+    }
+
+    if (response && response.errors) {
+        return response;
     }
 
     if (args.dest) {
@@ -169,12 +176,10 @@ async function updateAppJsonFile(content, appId, src) {
         }
         return result;
     } catch(e) {
-        console.log('error...');
         logger.error({
             label: loggerLabel,
             message: 'BUILD Failed. Due to :' + e
         });
-        console.error(e);
         return {
             success : false,
             errors: e
@@ -250,7 +255,10 @@ async function writeWmRNConfig(content) {
         if (error) {
             throw error;
         }
-        console.log('updated wm_rn_config.json file');
+        logger.info({
+            'label': loggerLabel,
+            'message': 'updated wm_rn_config.json file'
+        })
     })
 }
 
@@ -307,6 +315,7 @@ async function ejectProject(args) {
     if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
         !await checkForGradleAvailability() || !await isGitInstalled()) {
         return {
+            errors: 'check if all prerequisites are installed.',
             success: false
         }
     }
@@ -326,25 +335,33 @@ async function ejectProject(args) {
         }
         await fs.mkdirsSync(linkFolderPath);
         await fs.copySync(args.localrnruntimepath, linkFolderPath);
-        console.log('copied the app-rn-runtime folder');
+        logger.info({
+            'label': loggerLabel,
+            'message': 'copied the app-rn-runtime folder'
+        })
     }
     // expo eject checks whether src is a git repo or not
     await exec('git', ['init'], {
         cwd: config.src
     });
-    console.log('invoking expo eject');
+    logger.info({
+        'label': loggerLabel,
+        'message': 'invoking expo eject'
+    });
     await execa('expo', ['eject'], {
         cwd: config.src
     });
-    console.log('expo eject succeded');
+    logger.info({
+        'label': loggerLabel,
+        'message': 'expo eject succeeded'
+    });
     await writeWmRNConfig({ejected: true});
 } catch (e) {
     logger.error({
         label: loggerLabel,
-        message: args.platform + ' BUILD Failed. Due to :' + e
+        message: args.platform + ' eject project Failed. Due to :' + e
     });
-    console.error(e);
-    return { success : false };
+    return { errors: e, success : false };
 }
 }
 
