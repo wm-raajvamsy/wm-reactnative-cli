@@ -1,7 +1,6 @@
 const fs = require('fs-extra');
 const logger = require('./logger');
 const config = require('./config');
-const path = require('path');
 
 const {
     exec
@@ -36,6 +35,8 @@ async function importCertToKeyChain(keychainName, certificate, certificatePasswo
         label: loggerLabel,
         message: `Cerificate at (${certificate}) imported in (${keychainName})`
     });
+    let signingDetails = await exec('security', ['find-identity', '-v', '-p', 'codesigning'], {log: false});
+    console.log(signingDetails);
     return async () => {
         keychains = keychains.map(k => k.replace(/[\"\s]+/g, ''));
         await exec('security', ['list-keychains', '-d', 'user', '-s', ...keychains], {log: false});
@@ -79,7 +80,7 @@ async function invokeiosBuild(args) {
     const certificatePassword = args.iCertificatePassword;
     const provisionalFile = args.iProvisioningFile;
     const buildType = args.buildType;
-    if (!await hasValidNodeVersion() || !await isGitInstalled() || !await isCocoaPodsIstalled()) {
+    if (!await isCocoaPodsIstalled()) {
         return {
             success: false
         }
@@ -95,12 +96,16 @@ async function invokeiosBuild(args) {
         const username = await getUsername();
         const keychainName = `wm-reactnative-${random}.keychain`;
         const provisionuuid =  await extractUUID(provisionalFile);
+
+        let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
+            shell: true
+        });
+        codeSignIdentity = codeSignIdentity[1];
         let useModernBuildSystem = 'YES';
         logger.info({
             label: loggerLabel,
             message: `provisional UUID : ${provisionuuid}`
         });
-        const codeSignIdentity = buildType === 'release' ? "iPhone Distribution" : "iPhone Developer";
         const developmentTeamId = await extractTeamId(provisionalFile);
         logger.info({
             label: loggerLabel,
@@ -110,11 +115,10 @@ async function invokeiosBuild(args) {
         fs.mkdirSync(ppFolder, {
             recursive: true
         })
-        const targetProvisionsalPath = `${ppFolder}/${provisionuuid}.mobileprovision`;
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
 
         try {
-            await xcodebuild(codeSignIdentity, provisionuuid, developmentTeamId);
+            return await xcodebuild(args, codeSignIdentity, provisionuuid, developmentTeamId);
         } catch (e) {
             return {
                 errors: e,
@@ -151,23 +155,57 @@ async function updateInfoPlist(appName, PROVISIONING_UUID) {
     }
     });
 }
+const endWith = (str, suffix) => {
+    if (!str.endsWith(suffix)) {
+        return str += suffix;
+    }
+    return str;
+};
 
-async function xcodebuild(CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVELOPMENT_TEAM) {
-    const appName = config.metaData.name;
+function findFile(path, nameregex) {
+    const files = fs.readdirSync(path);
+    const f = files.find(f => f.match(nameregex));
+    return f ? endWith(path, '/') + f : '';
+}
+
+async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVELOPMENT_TEAM) {
     try {
-        await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
+        let xcworkspacePath = findFile(config.src + 'ios', /\.xcworkspace?/) || findFile(config.src + 'ios', /\.xcodeproj?/);
+        if (!xcworkspacePath) {
+            return {
+                errors: '.xcworkspace or .xcodeproj files are not found in ios directory',
+                success: false
+            }
+        }
+        const pathArr = xcworkspacePath.split('/');
+        const xcworkspaceFileName = pathArr[pathArr.length - 1];
+        const fileName = xcworkspaceFileName.split('.')[0];
+        let _buildType;
+        if (args.buildType === 'development' || args.buildType === 'debug') {
+            _buildType = 'Debug';
+        } else {
+            _buildType = 'Release';
+        }
+        await exec('xcodebuild', ['-workspace', fileName + '.xcworkspace', '-scheme', fileName, '-configuration', _buildType, 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
+            cwd: config.src + 'ios'
+        });
+        await exec('xcodebuild', ['-workspace', fileName + '.xcworkspace', '-scheme', fileName, '-configuration', _buildType, '-archivePath', 'build/' + fileName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
             cwd: config.src + 'ios'
         });
 
-        await exec('xcodebuild', ['-workspace', appName + '.xcworkspace', '-scheme', appName, '-configuration', 'Release', '-archivePath', 'build/' + appName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
-            cwd: config.src + 'ios'
-        });
-
-        const status = await updateInfoPlist(appName, PROVISIONING_UUID);
+        const status = await updateInfoPlist(fileName, PROVISIONING_UUID);
         if (status === 'success') {
-            await exec('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + appName + '.xcarchive', '-exportOptionsPlist', 'build/' + appName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
+            await exec('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + fileName + '.xcarchive', '-exportOptionsPlist', 'build/' + fileName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
                 cwd: config.src + 'ios'
             });
+            const output =  args.dest + 'output/ios/';
+            const outputFilePath = `${output}${fileName}(${config.metaData.version}).${args.buildType}.ipa`;
+            fs.mkdirSync(output, {recursive: true});
+            fs.copyFileSync(findFile(`${args.dest}ios/build/`, /\.ipa?/), outputFilePath);
+            return {
+                success: true,
+                output: outputFilePath
+            }
         }
     } catch (e) {
         return {
