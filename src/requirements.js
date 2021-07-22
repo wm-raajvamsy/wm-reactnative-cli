@@ -11,13 +11,14 @@ const loggerLabel = 'rn-cli-requirements';
 const VERSIONS = {
     'NODE': '12.0.0',
     'POD' : '1.9.0',
-    'JAVA': '1.8.0'
+    'JAVA': '1.8.0',
+    'REACT_NATIVE': '0.63.4',
+    'EXPO': '4.7.3',
 }
-let projectSrc;
 
 // check if expo cli is installed globally or not
 // gradle check
-async function checkAvailability(cmd, transformFn) {
+async function checkAvailability(cmd, transformFn, projectSrc) {
     try {
         let options = {};
         if (projectSrc) {
@@ -139,6 +140,17 @@ async function hasValidNodeVersion() {
     return await checkAvailability('node');
 }
 
+async function hasValidExpoVersion() {
+    return await checkAvailability('expo');
+}
+
+async function hasValidRNVersion(projectSrc) {
+    // return await checkAvailability('react-native', o => {
+    //     console.log(o);
+    //     o && o.substring(o.indexOf('Gradle'))
+    // }, projectSrc);
+}
+
 function validateForAndroid(keyStore, storePassword, keyAlias, keyPassword) {
     let errors = [];
     if (!(keyStore && fs.existsSync(keyStore))) {
@@ -204,7 +216,8 @@ module.exports = {
     hasValidJavaVersion: hasValidJavaVersion,
     showConfirmation: showConfirmation,
     checkForAndroidStudioAvailability: checkForAndroidStudioAvailability,
-    checkForGradleAvailability: checkForGradleAvailability
+    checkForGradleAvailability: checkForGradleAvailability,
+    hasValidExpoVersion: hasValidExpoVersion,
+    hasValidRNVersion: hasValidRNVersion
 }
-// TODO check for expo-cli, react-native
 // TODO: support for multiple react native versions.
