@@ -4,7 +4,6 @@ const plist = require('plist');
 const path = require('path');
 const android = require('./android');
 const { showConfirmation } = require('./requirements');
-const execa = require('execa');
 
 const {
     exec
@@ -16,6 +15,8 @@ const {
     checkForGradleAvailability,
     isGitInstalled,
     hasYarnPackage,
+    hasValidRNVersion,
+    hasValidExpoVersion
  } = require('./requirements');
 
  const config = require('./config');
@@ -149,7 +150,7 @@ async function updateAppJsonFile(content, appId, src) {
         } else if (config.platform === 'ios') {
             updateExpoplistFile();
 
-            await execa('pod', ['install'], {
+            await exec('pod', ['install'], {
                 cwd: config.src + 'ios'
             });
             result = await invokeiosBuild(args);
@@ -313,7 +314,7 @@ async function ejectProject(args) {
     config.buildType = args.buildType;
 
     if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
-        !await checkForGradleAvailability() || !await isGitInstalled()) {
+        !await checkForGradleAvailability() || !await isGitInstalled() || !await hasValidExpoVersion()) {
         return {
             errors: 'check if all prerequisites are installed.',
             success: false
@@ -348,7 +349,7 @@ async function ejectProject(args) {
         'label': loggerLabel,
         'message': 'invoking expo eject'
     });
-    await execa('expo', ['eject'], {
+    await exec('expo', ['eject'], {
         cwd: config.src
     });
     logger.info({
