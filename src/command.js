@@ -15,7 +15,6 @@ const {
     checkForGradleAvailability,
     isGitInstalled,
     hasYarnPackage,
-    hasValidRNVersion,
     hasValidExpoVersion
  } = require('./requirements');
 
@@ -328,19 +327,6 @@ async function ejectProject(args) {
     await exec('yarn', ['install'], {
         cwd: config.src
     });
-    if (args.localrnruntimepath) {
-        const linkFolderPath = config.src + 'node_modules/@wavemaker/app-rn-runtime';
-        // using removeSync when target is directory and unlinkSync works when target is file.
-        if (fs.existsSync(linkFolderPath)) {
-            fs.removeSync(linkFolderPath);
-        }
-        await fs.mkdirsSync(linkFolderPath);
-        await fs.copySync(args.localrnruntimepath, linkFolderPath);
-        logger.info({
-            'label': loggerLabel,
-            'message': 'copied the app-rn-runtime folder'
-        })
-    }
     // expo eject checks whether src is a git repo or not
     await exec('git', ['init'], {
         cwd: config.src
@@ -356,6 +342,19 @@ async function ejectProject(args) {
         'label': loggerLabel,
         'message': 'expo eject succeeded'
     });
+    if (args.localrnruntimepath) {
+        const linkFolderPath = config.src + 'node_modules/@wavemaker/app-rn-runtime';
+        // using removeSync when target is directory and unlinkSync works when target is file.
+        if (fs.existsSync(linkFolderPath)) {
+            fs.removeSync(linkFolderPath);
+        }
+        await fs.mkdirsSync(linkFolderPath);
+        await fs.copySync(args.localrnruntimepath, linkFolderPath);
+        logger.info({
+            'label': loggerLabel,
+            'message': 'copied the app-rn-runtime folder'
+        })
+    }
     await writeWmRNConfig({ejected: true});
 } catch (e) {
     logger.error({
