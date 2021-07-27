@@ -103,7 +103,7 @@ async function updateAppJsonFile(content, appId, src) {
 }
 
  async function build(args) {
-    const directories = await setupBuildDirectory(args.src, args.dest);
+    const directories = await setupBuildDirectory(args.src, args.dest, args.platform);
     if (!directories) {
         return {
             success : false,
@@ -215,7 +215,7 @@ async function extractRNZip(src)  {
     return path.resolve(src) + '/';
 }
 
-async function setupBuildDirectory(src, dest) {
+async function setupBuildDirectory(src, dest, platform) {
     src = await extractRNZip(src);
     const metadata = await readWmRNConfig(src);
     if (fs.existsSync(dest)) {
@@ -237,7 +237,7 @@ async function setupBuildDirectory(src, dest) {
             }
         }
     }
-    dest = dest || await getDefaultDestination(metadata.id);
+    dest = dest || await getDefaultDestination(metadata.id, platform);
     dest = path.resolve(dest)  + '/';
     if(src === dest) {
         logger.error({
@@ -259,9 +259,9 @@ async function setupBuildDirectory(src, dest) {
     };
 }
 
-async function getDefaultDestination(id) {
+async function getDefaultDestination(id, platform) {
     const version = '1.0.0';
-    const path = `${require('os').homedir()}/.wm-reactnative-cli/build/${id}/${version}/`;
+    const path = `${require('os').homedir()}/.wm-reactnative-cli/build/${id}/${version}/${platform}`;
     fs.mkdirSync(path, {
         recursive: true
     });
