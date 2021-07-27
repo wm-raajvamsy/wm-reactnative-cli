@@ -103,7 +103,7 @@ async function updateAppJsonFile(content, appId, src) {
 }
 
  async function build(args) {
-    const directories = await setupBuildDirectory(args.src, args.dest, args.appId);
+    const directories = await setupBuildDirectory(args.src, args.dest);
     if (!directories) {
         return {
             success : false,
@@ -215,8 +215,9 @@ async function extractRNZip(src)  {
     return path.resolve(src) + '/';
 }
 
-async function setupBuildDirectory(src, dest, appId) {
+async function setupBuildDirectory(src, dest) {
     src = await extractRNZip(src);
+    const metadata = await readWmRNConfig(src);
     if (fs.existsSync(dest)) {
         if (fs.readdirSync(dest).length) {
             const response = await showConfirmation('Would you like to empty the dest folder (i.e. ' + dest + ') (yes/no) ?');
@@ -236,7 +237,7 @@ async function setupBuildDirectory(src, dest, appId) {
             }
         }
     }
-    dest = dest || await getDefaultDestination(appId);
+    dest = dest || await getDefaultDestination(metadata.id);
     dest = path.resolve(dest)  + '/';
     if(src === dest) {
         logger.error({
@@ -258,8 +259,7 @@ async function setupBuildDirectory(src, dest, appId) {
     };
 }
 
-async function getDefaultDestination() {
-    const id = config.metaData.id;
+async function getDefaultDestination(id) {
     const version = '1.0.0';
     const path = `${require('os').homedir()}/.wm-reactnative-cli/build/${id}/${version}/`;
     fs.mkdirSync(path, {
