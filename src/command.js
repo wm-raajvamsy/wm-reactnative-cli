@@ -103,6 +103,15 @@ async function updateAppJsonFile(content, appId, src) {
 }
 
  async function build(args) {
+    const directories = await setupBuildDirectory(args.src, args.dest, args.appId);
+    if (!directories) {
+        return {
+            success : false,
+            errors: 'could not setup the build directories.'
+        };
+    }
+    args.src = directories.src;
+    args.dest = directories.dest
      if (!args.autoEject) {
         const response = await showConfirmation('Would you like to eject the expo project (yes/no) ?');
         if (response !== 'y' && response !== 'yes') {
@@ -180,30 +189,73 @@ async function updateAppJsonFile(content, appId, src) {
     }
 }
 
-async function setupBuildDirectory(src, dest) {
-    const target = dest;
-    if (fs.existsSync(target)) {
-        if (fs.readdirSync(target).length) {
+async function extractRNZip(src)  {
+    let folderName = src.split('/').pop();
+    const isZipFile = folderName.endsWith('.zip');
+
+    folderName = isZipFile ? folderName.replace('.zip', '') : folderName;
+
+    const tmp = `${require('os').homedir()}/.wm-reactnative-cli/temp/${folderName}/${Date.now()}`;
+
+    if (src.endsWith('.zip')) {
+        const zipFile = src;
+        src = tmp + '/src';
+
+        if (!fs.existsSync(src)) {
+            fs.mkdirsSync(src);
+        }
+
+        await exec('unzip', [
+            '-o',
+            zipFile,
+            '-d',
+            src
+        ]);
+    }
+    return path.resolve(src) + '/';
+}
+
+async function setupBuildDirectory(src, dest, appId) {
+    src = await extractRNZip(src);
+    if (fs.existsSync(dest)) {
+        if (fs.readdirSync(dest).length) {
             const response = await showConfirmation('Would you like to empty the dest folder (i.e. ' + dest + ') (yes/no) ?');
             if (response !== 'y' && response !== 'yes') {
-                process.exit();
+                logger.error({
+                    label: loggerLabel,
+                    message: 'source and destination folders are same. Please choose a different destination.'
+                });
+                return;
             }
-            // using removeSync when target is directory and unlinkSync works when target is file.
-            const fsStat = fs.lstatSync(target);
+            // using removeSync when dest is directory and unlinkSync works when dest is file.
+            const fsStat = fs.lstatSync(dest);
             if (fsStat.isDirectory()) {
-                fs.removeSync(target);
+                fs.removeSync(dest);
             } else if (fsStat.isFile()) {
-                fs.unlinkSync(target);
+                fs.unlinkSync(dest);
             }
         }
     }
-    fs.mkdirsSync(target);
+    dest = dest || await getDefaultDestination(appId);
+    dest = path.resolve(dest)  + '/';
+    if(src === dest) {
+        logger.error({
+            label: loggerLabel,
+            message: 'source and destination folders are same. Please choose a different destination.'
+        });
+        return;
+    }
+    fs.mkdirsSync(dest);
     fs.copySync(src, dest);
     const logDirectory = dest + 'output/logs/';
     fs.mkdirSync(logDirectory, {
         recursive: true
     });
     logger.setLogDirectory(logDirectory);
+    return {
+        src: src,
+        dest: dest
+    };
 }
 
 async function getDefaultDestination() {
@@ -263,104 +315,68 @@ async function writeWmRNConfig(content) {
 // src points to unzip proj
 async function ejectProject(args) {
     try {
-        let folderName = args.src.split('/').pop();
-        const isZipFile = folderName.endsWith('.zip');
-
-        folderName = isZipFile ? folderName.replace('.zip', '') : folderName;
-
-        const tmp = `${require('os').homedir()}/.wm-reactnative-cli/temp/${folderName}/${Date.now()}`;
-
-        if (args.src.endsWith('.zip')) {
-            const zipFile = args.src;
-            args.src = tmp + '/src';
-
-            if (!fs.existsSync(args.src)) {
-                fs.mkdirsSync(args.src);
-            }
-
-            await exec('unzip', [
-                '-o',
-                zipFile,
-                '-d',
-                args.src
-            ]);
-        }
-        args.src = path.resolve(args.src) + '/';
-
-        if(!args.dest) {
-            args.dest = await getDefaultDestination(args.appId);
-        }
-        args.dest = path.resolve(args.dest)  + '/';
-
-        if(args.src === args.dest) {
-            logger.error({
-                label: loggerLabel,
-                message: 'source and destination folders are same. Please choose a different destination.'
-            });
-        }
-        await setupBuildDirectory(args.src, args.dest);
         config.src = args.dest;
         logger.info({
             label: loggerLabel,
             message: 'destination folder where app is build at ' + args.dest
         })
-    if (!args.platform) {
-        args.platform = 'android';
-    }
-    config.platform = args.platform;
-    config.buildType = args.buildType;
+        if (!args.platform) {
+            args.platform = 'android';
+        }
+        config.platform = args.platform;
+        config.buildType = args.buildType;
 
-    if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
-        !await checkForGradleAvailability() || !await isGitInstalled() || !await hasValidExpoVersion()) {
-        return {
-            errors: 'check if all prerequisites are installed.',
-            success: false
+        if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
+            !await checkForGradleAvailability() || !await isGitInstalled() || !await hasValidExpoVersion()) {
+            return {
+                errors: 'check if all prerequisites are installed.',
+                success: false
+            }
         }
-    }
-    await updateAppJsonFile({
-        'name': config.metaData.name,
-        'slug': config.metaData.name
-    }, config.metaData.id, config.src);
-    await updatePackageJsonFile(config.src + 'package.json');
-    await exec('yarn', ['install'], {
-        cwd: config.src
-    });
-    // expo eject checks whether src is a git repo or not
-    await exec('git', ['init'], {
-        cwd: config.src
-    });
-    logger.info({
-        'label': loggerLabel,
-        'message': 'invoking expo eject'
-    });
-    await exec('expo', ['eject'], {
-        cwd: config.src
-    });
-    logger.info({
-        'label': loggerLabel,
-        'message': 'expo eject succeeded'
-    });
-    if (args.localrnruntimepath) {
-        const linkFolderPath = config.src + 'node_modules/@wavemaker/app-rn-runtime';
-        // using removeSync when target is directory and unlinkSync works when target is file.
-        if (fs.existsSync(linkFolderPath)) {
-            fs.removeSync(linkFolderPath);
-        }
-        await fs.mkdirsSync(linkFolderPath);
-        await fs.copySync(args.localrnruntimepath, linkFolderPath);
+        await updateAppJsonFile({
+            'name': config.metaData.name,
+            'slug': config.metaData.name
+        }, config.metaData.id, config.src);
+        await updatePackageJsonFile(config.src + 'package.json');
+        await exec('yarn', ['install'], {
+            cwd: config.src
+        });
+        // expo eject checks whether src is a git repo or not
+        await exec('git', ['init'], {
+            cwd: config.src
+        });
         logger.info({
             'label': loggerLabel,
-            'message': 'copied the app-rn-runtime folder'
-        })
+            'message': 'invoking expo eject'
+        });
+        await exec('expo', ['eject'], {
+            cwd: config.src
+        });
+        logger.info({
+            'label': loggerLabel,
+            'message': 'expo eject succeeded'
+        });
+        if (args.localrnruntimepath) {
+            const linkFolderPath = config.src + 'node_modules/@wavemaker/app-rn-runtime';
+            // using removeSync when target is directory and unlinkSync works when target is file.
+            if (fs.existsSync(linkFolderPath)) {
+                fs.removeSync(linkFolderPath);
+            }
+            await fs.mkdirsSync(linkFolderPath);
+            await fs.copySync(args.localrnruntimepath, linkFolderPath);
+            logger.info({
+                'label': loggerLabel,
+                'message': 'copied the app-rn-runtime folder'
+            })
+        }
+        await writeWmRNConfig({ejected: true});
+    } catch (e) {
+        logger.error({
+            label: loggerLabel,
+            message: args.platform + ' eject project Failed. Due to :' + e
+        });
+        return { errors: e, success : false };
     }
-    await writeWmRNConfig({ejected: true});
-} catch (e) {
-    logger.error({
-        label: loggerLabel,
-        message: args.platform + ' eject project Failed. Due to :' + e
-    });
-    return { errors: e, success : false };
-}
 }
 
 module.exports = {
