@@ -200,17 +200,23 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         } else {
             _buildType = 'Release';
         }
+        const env = {
+            RCT_NO_LAUNCH_PACKAGER: 1
+        };
         await exec('xcodebuild', ['-workspace', fileName + '.xcworkspace', '-scheme', fileName, '-configuration', _buildType, 'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'DEVELOPMENT_TEAM=' +  DEVELOPMENT_TEAM, 'CODE_SIGN_STYLE=Manual'], {
-            cwd: config.src + 'ios'
+            cwd: config.src + 'ios',
+            env: env
         });
         await exec('xcodebuild', ['-workspace', fileName + '.xcworkspace', '-scheme', fileName, '-configuration', _buildType, '-archivePath', 'build/' + fileName + '.xcarchive',  'CODE_SIGN_IDENTITY=' + CODE_SIGN_IDENTITY_VAL, 'PROVISIONING_PROFILE=' + PROVISIONING_UUID, 'archive', 'CODE_SIGN_STYLE=Manual'], {
-            cwd: config.src + 'ios'
+            cwd: config.src + 'ios',
+            env: env
         });
 
         const status = await updateInfoPlist(fileName, PROVISIONING_UUID);
         if (status === 'success') {
             await exec('xcodebuild', ['-exportArchive', '-archivePath', 'build/' + fileName + '.xcarchive', '-exportOptionsPlist', 'build/' + fileName + '.xcarchive/Info.plist', '-exportPath', 'build'], {
-                cwd: config.src + 'ios'
+                cwd: config.src + 'ios',
+                env: env
             });
             const output =  args.dest + 'output/ios/';
             const outputFilePath = `${output}${fileName}(${config.metaData.version}).${args.buildType}.ipa`;
