@@ -129,14 +129,7 @@ async function updateAppJsonFile(content, appId, src) {
         config.src = args.dest;
     }
     config.outputDirectory = config.src + 'output/';
-    fs.mkdirSync(config.outputDirectory, {
-        recursive: true
-    });
     config.logDirectory = config.outputDirectory + 'logs/';
-    fs.mkdirSync(config.logDirectory, {
-        recursive: true
-    });
-    logger.setLogDirectory(config.logDirectory);
     logger.info({
         label: loggerLabel,
         message: `Building at : ${config.src}`
@@ -206,6 +199,11 @@ async function setupBuildDirectory(src, dest) {
     }
     fs.mkdirsSync(target);
     fs.copySync(src, dest);
+    const logDirectory = dest + 'output/logs/';
+    fs.mkdirSync(logDirectory, {
+        recursive: true
+    });
+    logger.setLogDirectory(logDirectory);
 }
 
 async function getDefaultDestination() {
