@@ -1,7 +1,7 @@
 const fs = require('fs-extra');
 const logger = require('./logger');
 const config = require('./config');
-
+const plist = require('plist');
 const {
     exec
 } = require('./exec');
@@ -155,6 +155,19 @@ async function updateInfoPlist(appName, PROVISIONING_UUID) {
     }
     });
 }
+
+const removePushNotifications = (projectDir, projectName) => {
+    const dir = `${projectDir}ios/${projectName}/`;
+    const entitlements = dir + fs.readdirSync(dir).find(f => f.endsWith('entitlements'));
+    const o = plist.parse(fs.readFileSync(entitlements, 'utf8'));
+    delete o['aps-environment'];
+    fs.writeFileSync(entitlements, plist.build(o), 'utf8');
+    logger.info({
+        label: loggerLabel,
+        message: `removed aps-environment from entitlements`
+    });
+};
+
 const endWith = (str, suffix) => {
     if (!str.endsWith(suffix)) {
         return str += suffix;
@@ -180,6 +193,7 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         const pathArr = xcworkspacePath.split('/');
         const xcworkspaceFileName = pathArr[pathArr.length - 1];
         const fileName = xcworkspaceFileName.split('.')[0];
+        removePushNotifications(config.src, config.metaData.name);
         let _buildType;
         if (args.buildType === 'development' || args.buildType === 'debug') {
             _buildType = 'Debug';
