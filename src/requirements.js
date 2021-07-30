@@ -144,13 +144,6 @@ async function hasValidExpoVersion() {
     return await checkAvailability('expo');
 }
 
-async function hasValidRNVersion(projectSrc) {
-    // return await checkAvailability('react-native', o => {
-    //     console.log(o);
-    //     o && o.substring(o.indexOf('Gradle'))
-    // }, projectSrc);
-}
-
 function validateForAndroid(keyStore, storePassword, keyAlias, keyPassword) {
     let errors = [];
     if (!(keyStore && fs.existsSync(keyStore))) {
@@ -217,7 +210,6 @@ module.exports = {
     showConfirmation: showConfirmation,
     checkForAndroidStudioAvailability: checkForAndroidStudioAvailability,
     checkForGradleAvailability: checkForGradleAvailability,
-    hasValidExpoVersion: hasValidExpoVersion,
-    hasValidRNVersion: hasValidRNVersion
+    hasValidExpoVersion: hasValidExpoVersion
 }
 // TODO: support for multiple react native versions.
