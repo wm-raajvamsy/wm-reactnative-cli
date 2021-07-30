@@ -50,6 +50,7 @@ async function updatePackageJsonFile(path) {
                 }
                 var jsonData = JSON.parse(data);
                 jsonData['main'] = "index";
+                delete jsonData['dependencies']['expo-image-picker'];
                 await fs.writeFile(path, JSON.stringify(jsonData), error => {
                     if (error) {
                         throw error;
@@ -67,7 +68,7 @@ async function updatePackageJsonFile(path) {
     })
 }
 
-async function updateAppJsonFile(content, appId, src) {
+async function updateAppJsonFile(content, src) {
     return await new Promise(resolve => {
         try {
             const path = (src || config.src) + 'app.json';
@@ -80,9 +81,14 @@ async function updateAppJsonFile(content, appId, src) {
                     if (content) {
                         Object.assign(jsonData['expo'], content);
                     }
-                    if (appId) {
-                        jsonData['expo']['android']['package'] = appId;
-                        jsonData['expo']['ios']['bundleIdentifier'] = appId;
+                    if (config.metaData.id) {
+                        jsonData['expo']['android']['package'] = config.metaData.id;
+                        jsonData['expo']['ios']['bundleIdentifier'] = config.metaData.id;
+                    }
+                    if (config.metaData.icon) {
+                        jsonData['expo']['icon'] = config.metaData.icon.src;
+                        jsonData['expo']['splash']['image'] = config.metaData.splash.src;
+                        jsonData['expo']['android']['adaptiveIcon']['foregroundImage'] = config.metaData.icon.src;
                     }
                     await fs.writeFile(path, JSON.stringify(jsonData), error => {
                         if (error) {
@@ -119,6 +125,14 @@ async function updateAppJsonFile(content, appId, src) {
         }
      }
      config.metaData = await readWmRNConfig(args.src);
+
+     if (config.metaData.icon.src.startsWith('resources')) {
+        config.metaData.icon.src = 'src/' + config.metaData.icon.src;
+     }
+     if (config.metaData.splash.src.startsWith('resources')) {
+        config.metaData.splash.src = 'src/' + config.metaData.splash.src;
+     }
+     
      config.platform = args.platform;
      let response;
      if (args.dest) {
@@ -336,7 +350,7 @@ async function ejectProject(args) {
         await updateAppJsonFile({
             'name': config.metaData.name,
             'slug': config.metaData.name
-        }, config.metaData.id, config.src);
+        }, config.src);
         await updatePackageJsonFile(config.src + 'package.json');
         await exec('yarn', ['install'], {
             cwd: config.src
@@ -350,6 +364,10 @@ async function ejectProject(args) {
             'message': 'invoking expo eject'
         });
         await exec('expo', ['eject'], {
+            cwd: config.src
+        });
+        // TODO: plugin addition, remove later 
+        await exec('expo', ['install', 'expo-image-picker'], {
             cwd: config.src
         });
         logger.info({
