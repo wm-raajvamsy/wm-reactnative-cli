@@ -143,6 +143,18 @@ function findFile(path, nameregex) {
     return endWith(path, '/') + f;
 }
 
+async function updateToolsInBuildGradleFile() {
+    const path = config.src + 'android/build.gradle';
+    let data = fs.readFileSync(path, 'utf8');
+    console.log(data);
+
+    let content = fs.readFileSync(path, 'utf8');
+    // TODO update the version only when version is less than 4.0.1 and gradle-properties distributionUrl - 6.3.0
+    content = content.replace(/com.android.tools.build:gradle:(\d+)\.(\d+)\.\d+/gm, 'com.android.tools.build:gradle:4.0.1');
+
+    await fs.writeFileSync(path, content);
+}
+
 async function updateAndroidBuildGradleFile(type) {
     const path = config.src + 'android/app/build.gradle';
     let data = fs.readFileSync(path, 'utf8');
@@ -198,14 +210,12 @@ async function invokeAndroidBuild(args) {
         await generateSignedApk(keyStore, storePassword, keyAlias, keyPassword, args.packageType);
     } else {
         await updateAndroidBuildGradleFile(args.buildType);
+        await updateToolsInBuildGradleFile();
         logger.info({
             label: loggerLabel,
             message: 'Updated build.gradle file with debug configuration'
         });
         try {
-        await exec('./gradlew', ['clean'], {
-            cwd: config.src + 'android'
-        });
         await exec('./gradlew', ['assembleDebug'], {
             cwd: config.src + 'android'
         });

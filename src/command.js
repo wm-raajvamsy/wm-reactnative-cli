@@ -50,7 +50,6 @@ async function updatePackageJsonFile(path) {
                 }
                 var jsonData = JSON.parse(data);
                 jsonData['main'] = "index";
-                delete jsonData['dependencies']['expo-image-picker'];
                 await fs.writeFile(path, JSON.stringify(jsonData), error => {
                     if (error) {
                         throw error;
@@ -132,7 +131,7 @@ async function updateAppJsonFile(content, src) {
      if (config.metaData.splash.src.startsWith('resources')) {
         config.metaData.splash.src = 'src/' + config.metaData.splash.src;
      }
-     
+
      config.platform = args.platform;
      let response;
      if (args.dest) {
@@ -364,10 +363,6 @@ async function ejectProject(args) {
             'message': 'invoking expo eject'
         });
         await exec('expo', ['eject'], {
-            cwd: config.src
-        });
-        // TODO: plugin addition, remove later 
-        await exec('expo', ['install', 'expo-image-picker'], {
             cwd: config.src
         });
         logger.info({
