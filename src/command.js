@@ -162,8 +162,6 @@ async function updateAppJsonFile(content, src) {
         if (config.platform === 'android') {
             result = await android.invokeAndroidBuild(args);
         } else if (config.platform === 'ios') {
-            updateExpoplistFile();
-
             await exec('pod', ['install'], {
                 cwd: config.src + 'ios'
             });
