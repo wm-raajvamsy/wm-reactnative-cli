@@ -28,19 +28,6 @@ function getFileSize(path) {
     return (stats && stats['size']) || 0;
 }
 
-function updateExpoplistFile() {
-    const iosPath =  config.src + 'ios';
-    var filename = fs.readdirSync(iosPath).filter(v => {
-        return v.endsWith('.xcodeproj') || v.endsWith('.xcworkspace');
-    });
-    filename = filename[0].replace('.xcworkspace', '').replace('.xcodeproj', '');
-    const plistPath = iosPath + '/' + filename + '/Supporting/Expo.plist';
-
-    var obj = plist.parse(fs.readFileSync(plistPath, 'utf8'));
-    obj['EXUpdatesURL'] = 'https://wavemaker.com'; // update with some dummy url
-    fs.writeFileSync(plistPath, plist.build(obj))
-}
-
 async function updatePackageJsonFile(path) {
     return await new Promise(resolve => {
         try {
