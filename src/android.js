@@ -203,9 +203,6 @@ async function invokeAndroidBuild(args) {
             message: 'Updated build.gradle file with debug configuration'
         });
         try {
-        await exec('./gradlew', ['clean'], {
-            cwd: config.src + 'android'
-        });
         await exec('./gradlew', ['assembleDebug'], {
             cwd: config.src + 'android'
         });

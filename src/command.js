@@ -28,19 +28,6 @@ function getFileSize(path) {
     return (stats && stats['size']) || 0;
 }
 
-function updateExpoplistFile() {
-    const iosPath =  config.src + 'ios';
-    var filename = fs.readdirSync(iosPath).filter(v => {
-        return v.endsWith('.xcodeproj') || v.endsWith('.xcworkspace');
-    });
-    filename = filename[0].replace('.xcworkspace', '').replace('.xcodeproj', '');
-    const plistPath = iosPath + '/' + filename + '/Supporting/Expo.plist';
-
-    var obj = plist.parse(fs.readFileSync(plistPath, 'utf8'));
-    obj['EXUpdatesURL'] = 'https://wavemaker.com'; // update with some dummy url
-    fs.writeFileSync(plistPath, plist.build(obj))
-}
-
 async function updatePackageJsonFile(path) {
     return await new Promise(resolve => {
         try {
@@ -50,7 +37,6 @@ async function updatePackageJsonFile(path) {
                 }
                 var jsonData = JSON.parse(data);
                 jsonData['main'] = "index";
-                delete jsonData['dependencies']['expo-image-picker'];
                 await fs.writeFile(path, JSON.stringify(jsonData), error => {
                     if (error) {
                         throw error;
@@ -132,7 +118,7 @@ async function updateAppJsonFile(content, src) {
      if (config.metaData.splash.src.startsWith('resources')) {
         config.metaData.splash.src = 'src/' + config.metaData.splash.src;
      }
-     
+
      config.platform = args.platform;
      let response;
      if (args.dest) {
@@ -163,8 +149,6 @@ async function updateAppJsonFile(content, src) {
         if (config.platform === 'android') {
             result = await android.invokeAndroidBuild(args);
         } else if (config.platform === 'ios') {
-            updateExpoplistFile();
-
             await exec('pod', ['install'], {
                 cwd: config.src + 'ios'
             });
@@ -364,10 +348,6 @@ async function ejectProject(args) {
             'message': 'invoking expo eject'
         });
         await exec('expo', ['eject'], {
-            cwd: config.src
-        });
-        // TODO: plugin addition, remove later 
-        await exec('expo', ['install', 'expo-image-picker'], {
             cwd: config.src
         });
         logger.info({
