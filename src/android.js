@@ -98,10 +98,6 @@ async function generateAab(packageType) {
 
 function setDebugFlagInGradle(content) {
     let newContent;
-    // enableHermes option will always be there in the content, hence just set to true / false depending on preference value.
-    if (content.search(`enableHermes:`) !== -1 && config.metaData.preferences) {
-        content = content.replace(/enableHermes\: (true|false)/gm, `enableHermes: ${config.metaData.preferences.enableHermes}`);
-    }
     if (content.search(`entryFile: "index.js"`) === -1) {
     newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
         entryFile: "index.js",

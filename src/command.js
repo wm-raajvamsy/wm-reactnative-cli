@@ -71,6 +71,7 @@ async function updateAppJsonFile(content, src) {
                         jsonData['expo']['android']['package'] = config.metaData.id;
                         jsonData['expo']['ios']['bundleIdentifier'] = config.metaData.id;
                     }
+                    jsonData['expo']['jsEngine'] = config.metaData.preferences.enableHermes ? 'hermes' : 'jsc'; 
                     if (config.metaData.icon) {
                         jsonData['expo']['icon'] = config.metaData.icon.src;
                         jsonData['expo']['splash']['image'] = config.metaData.splash.src;
@@ -149,9 +150,9 @@ async function updateAppJsonFile(content, src) {
         if (config.platform === 'android') {
             result = await android.invokeAndroidBuild(args);
         } else if (config.platform === 'ios') {
-            await exec('pod', ['install'], {
-                cwd: config.src + 'ios'
-            });
+            // await exec('pod', ['install'], {
+            //     cwd: config.src + 'ios'
+            // });
             result = await invokeiosBuild(args);
         }
         if (result.errors && result.errors.length) {
