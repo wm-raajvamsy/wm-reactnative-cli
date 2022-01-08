@@ -218,11 +218,11 @@ async function invokeAndroidBuild(args) {
     const outputFilePath = `${output}${appName}(${config.metaData.version}).${args.buildType}.${args.packageType === 'bundle' ? 'aab': 'apk'}`;
 
     let bundlePath = null;
-    let folder = args.buildType === 'production' ? 'release' : 'debug';
+    let folder = args.buildType === 'release' ? 'release' : 'debug';
     if (args.packageType === 'bundle') {
-        bundlePath = findFile(`${args.dest}/android/app/build/outputs/bundle/${folder}`, /\.aab?/);
+        bundlePath = findFile(`${args.dest}android/app/build/outputs/bundle/${folder}`, /\.aab?/);
     } else {
-        bundlePath = findFile(`${args.dest}/android/app/build/outputs/apk/${folder}`, /\.apk?/);
+        bundlePath = findFile(`${args.dest}android/app/build/outputs/apk/${folder}`, /\.apk?/);
     }
     fs.mkdirSync(output, {recursive: true});
     fs.copyFileSync(bundlePath, outputFilePath);
