@@ -114,10 +114,10 @@ async function updateAppJsonFile(content, src) {
      config.metaData = await readWmRNConfig(args.src);
 
      if (config.metaData.icon.src.startsWith('resources')) {
-        config.metaData.icon.src = 'src/' + config.metaData.icon.src;
+        config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
      }
      if (config.metaData.splash.src.startsWith('resources')) {
-        config.metaData.splash.src = 'src/' + config.metaData.splash.src;
+        config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
      }
 
      config.platform = args.platform;
