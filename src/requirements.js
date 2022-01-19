@@ -210,6 +210,7 @@ module.exports = {
     showConfirmation: showConfirmation,
     checkForAndroidStudioAvailability: checkForAndroidStudioAvailability,
     checkForGradleAvailability: checkForGradleAvailability,
-    hasValidExpoVersion: hasValidExpoVersion
+    hasValidExpoVersion: hasValidExpoVersion,
+    VERSIONS: VERSIONS
 }
 // TODO: support for multiple react native versions.

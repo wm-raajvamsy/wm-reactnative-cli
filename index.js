@@ -3,6 +3,9 @@
 const {
     ejectProject, build
 } = require('./src/command');
+const {
+    runExpo
+} = require('./src/expo-launcher');
 
 // src is the web react native project zip
 const args = require('yargs')
@@ -100,6 +103,12 @@ const args = require('yargs')
                 default: false,
                 type: 'boolean'
             })
+    })
+    .command('run expo <previewUrl>',
+        'launch local expo with a wavemaker project as source',
+        yargs => yargs,
+        (args) => {
+            runExpo(args.previewUrl)
     })
     .help('h')
     .alias('h', 'help').argv;
