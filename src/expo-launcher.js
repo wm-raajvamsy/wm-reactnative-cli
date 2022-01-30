@@ -85,9 +85,9 @@ async function installDependencies(projectDir) {
     });
 }
 
-async function launchExpo(projectDir) {
+async function launchExpo(projectDir, web) {
     //openTerminal(`cd ${getExpoProjectDir(projectDir)}; expo start --web`);
-    await exec('expo', ['start'], {
+    await exec('expo', ['start', web ? '--web': null], {
         cwd: getExpoProjectDir(projectDir)
     });
 }
@@ -184,7 +184,8 @@ async function checkForChanges(previewUrl, useServiceProxy) {
     setTimeout(() => checkForChanges(previewUrl, current), 5000);
 }
 
-async function runExpo(previewUrl, useServiceProxy) {
+async function runExpo(previewUrl, web, clean) {
+    const useServiceProxy = !!web;
     try {
         const hasExpo = await hasValidExpoVersion();
         if (!hasExpo) {
@@ -194,12 +195,12 @@ async function runExpo(previewUrl, useServiceProxy) {
             });
             await installGlobalNpmPackage('expo-cli@' + VERSIONS.EXPO);
         }
-        const projectDir = await syncLocalWMProject(previewUrl, useServiceProxy, true);
+        const projectDir = await syncLocalWMProject(previewUrl, useServiceProxy, clean);
         await installDependencies(projectDir);
         if (useServiceProxy) {
             launchServiceProxy(previewUrl);
         }
-        launchExpo(projectDir);
+        launchExpo(projectDir, web);
         checkForChanges(previewUrl, useServiceProxy);
     } catch(e) {
         logger.error({

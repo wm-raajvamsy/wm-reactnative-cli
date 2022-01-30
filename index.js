@@ -107,14 +107,19 @@ const args = require('yargs')
     .command('run expo <previewUrl>',
         'launch local expo with a wavemaker project as source',
         yargs => {
-            yargs.option('useServiceProxy', {
-                describe: 'If set to true then a proxy will be started on 19009 port.',
+            yargs.option('web', {
+                describe: 'If set to true then web will be started.',
+                default: false,
+                type: 'boolean'
+            });
+            yargs.option('clean', {
+                describe: 'If set to true then all existing folders are removed.',
                 default: false,
                 type: 'boolean'
             });
         },
         (args) => {
-            runExpo(args.previewUrl, args.useServiceProxy)
+            runExpo(args.previewUrl, args.web, args.clean)
     })
     .help('h')
     .alias('h', 'help').argv;
