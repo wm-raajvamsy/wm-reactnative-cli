@@ -106,9 +106,15 @@ const args = require('yargs')
     })
     .command('run expo <previewUrl>',
         'launch local expo with a wavemaker project as source',
-        yargs => yargs,
+        yargs => {
+            yargs.option('useServiceProxy', {
+                describe: 'If set to true then a proxy will be started on 19009 port.',
+                default: false,
+                type: 'boolean'
+            });
+        },
         (args) => {
-            runExpo(args.previewUrl)
+            runExpo(args.previewUrl, args.useServiceProxy)
     })
     .help('h')
     .alias('h', 'help').argv;

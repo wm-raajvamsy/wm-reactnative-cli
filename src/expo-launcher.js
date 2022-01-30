@@ -1,6 +1,8 @@
 const logger = require('./logger');
 const fs = require('fs-extra');
+const os = require('os');
 const rimraf = require("rimraf");
+const httpProxy = require('http-proxy');
 const {
     exec
 } = require('./exec');
@@ -10,12 +12,48 @@ const tempDir = rootDir + '/temp';
 const axios = require('axios');
 //const openTerminal =  require('open-terminal').default;
 const MAX_REQUEST_ALLOWED_TIME = 5 * 60 * 1000;
+const proxyPort = 19009;
 fs.mkdirSync(tempDir, {recursive: true});
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
 }
 let lastSyncTime = 0;
+
+function launchServiceProxy(previewUrl) {
+    httpProxy.createProxyServer({
+        target: previewUrl,
+        changeOrigin: true
+    }).on('proxyRes', function (proxyRes, req, res) {
+        const cookies = proxyRes.headers['set-cookie'];
+        if (cookies) {
+            proxyRes.headers['set-cookie'] = cookies.map(c => {
+                return c.split(';').map(s => s.trim()).filter(cs => {
+                    return !(cs.startsWith('Path') || cs.startsWith('Secure') || cs.startsWith('HttpOnly'));
+                }).join('; ');
+            });;
+        }
+    }).listen(proxyPort);
+    logger.info({
+        label: loggerLabel,
+        message: `Service proxy launched on ${proxyPort} .`
+    });
+}
+
+function getIpAddress() {
+    var interfaces = os.networkInterfaces();
+    for(var key in interfaces) {
+        var addresses = interfaces[key];
+        for(var i = 0; i < addresses.length; i++) {
+            var address = addresses[i];
+            if(!address.internal && address.family === 'IPv4') {
+                return address.address;
+            };
+        };
+    };
+    return 'localhost';
+}
+
 async function transpile(projectDir) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
@@ -98,17 +136,19 @@ function getExpoProjectDir(projectDir) {
     return `${projectDir}/expo-project`;
 }
 
-async function setup(zipFile, previewUrl, _clean) {
+async function setup(zipFile, previewUrl, useServiceProxy, _clean) {
     const tempProjectDir = `${tempDir}/${Date.now()}`;
     await exec('unzip', ['-o', zipFile, '-d', tempProjectDir], {
         log: false
     });
     const configJSONFile = `${tempProjectDir}/wm_rn_config.json`;
     const config = require(configJSONFile);
-    if (config.serverPath === '{{DEVELOPMENT_URL}}') {
+    if (useServiceProxy) {
+        config.serverPath = `http://${getIpAddress()}:${proxyPort}`;
+    } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
         config.serverPath = previewUrl;
-        fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     }
+    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     const projectDir = `${rootDir}/build/${config.id}`;
     const wmProjectDir = getWmProjectDir(projectDir);
     const expoProjectDir = getExpoProjectDir(projectDir);
@@ -122,18 +162,18 @@ async function setup(zipFile, previewUrl, _clean) {
     return projectDir;
 }
 
-async function syncLocalWMProject(previewUrl, clean) {
+async function syncLocalWMProject(previewUrl, useServiceProxy, clean) {
     const zipFile = await downloadProject(previewUrl);
     if (zipFile) {
-        const projectDir = await setup(zipFile, previewUrl, clean);
+        const projectDir = await setup(zipFile, previewUrl, useServiceProxy, clean);
         await transpile(projectDir);
         return projectDir;
     }
 }
 
-async function checkForChanges(previewUrl) {
+async function checkForChanges(previewUrl, useServiceProxy) {
     try {
-        await syncLocalWMProject(previewUrl);
+        await syncLocalWMProject(previewUrl, useServiceProxy);
     } catch(e) {
         logger.debug({
             label: loggerLabel,
@@ -144,7 +184,7 @@ async function checkForChanges(previewUrl) {
     setTimeout(() => checkForChanges(previewUrl, current), 5000);
 }
 
-async function runExpo(previewUrl) {
+async function runExpo(previewUrl, useServiceProxy) {
     try {
         const hasExpo = await hasValidExpoVersion();
         if (!hasExpo) {
@@ -154,10 +194,13 @@ async function runExpo(previewUrl) {
             });
             await installGlobalNpmPackage('expo-cli@' + VERSIONS.EXPO);
         }
-        const projectDir = await syncLocalWMProject(previewUrl, true);
+        const projectDir = await syncLocalWMProject(previewUrl, useServiceProxy, true);
         await installDependencies(projectDir);
+        if (useServiceProxy) {
+            launchServiceProxy(previewUrl);
+        }
         launchExpo(projectDir);
-        checkForChanges(previewUrl);
+        checkForChanges(previewUrl, useServiceProxy);
     } catch(e) {
         logger.error({
             label: loggerLabel,
