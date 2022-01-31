@@ -192,7 +192,7 @@ async function checkForChanges(previewUrl, useServiceProxy) {
         });
     }
     const current = Date.now();
-    setTimeout(() => checkForChanges(previewUrl, current), 5000);
+    setTimeout(() => checkForChanges(previewUrl, useServiceProxy, current), 5000);
 }
 
 async function runExpo(previewUrl, web, clean) {
