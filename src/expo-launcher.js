@@ -21,6 +21,7 @@ function installGlobalNpmPackage(package) {
 let lastSyncTime = 0;
 
 function launchServiceProxy(previewUrl) {
+    const ip = getIpAddress();
     httpProxy.createProxyServer({
         target: previewUrl,
         changeOrigin: true
@@ -34,11 +35,11 @@ function launchServiceProxy(previewUrl) {
             });;
         }
         if (req.method === 'OPTIONS') {
-            proxyRes.headers['Access-Control-Allow-Origin'] = `http://${getIpAddress()}:19006`;
-            proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-            proxyRes.headers['Access-Control-Allow-Headers'] = 'x-wm-xsrf-token';
-            proxyRes.headers['Access-Control-Allow-Credentials'] = true;
-            proxyRes.headers['Access-Control-Max-Age'] = 1600;
+            proxyRes.headers['access-control-allow-origin'] = `http://${ip}:19006`;
+            proxyRes.headers['access-control-allow-methods'] = proxyRes.headers['access-control-allow-methods'] || 'GET, PUT, POST, DELETE, OPTIONS';
+            proxyRes.headers['access-control-allow-headers'] = proxyRes.headers['access-control-allow-headers'] || 'x-wm-xsrf-token';
+            proxyRes.headers['access-control-allow-credentials'] = true;
+            proxyRes.headers['access-control-max-age'] = 1600;
         }
     }).listen(proxyPort);
     logger.info({
