@@ -33,6 +33,13 @@ function launchServiceProxy(previewUrl) {
                 }).join('; ');
             });;
         }
+        if (req.method === 'OPTIONS') {
+            proxyRes.headers['Access-Control-Allow-Origin'] = `http://${getIpAddress()}:19006`;
+            proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+            proxyRes.headers['Access-Control-Allow-Headers'] = 'x-wm-xsrf-token';
+            proxyRes.headers['Access-Control-Allow-Credentials'] = true;
+            proxyRes.headers['Access-Control-Max-Age'] = 1600;
+        }
     }).listen(proxyPort);
     logger.info({
         label: loggerLabel,
@@ -87,7 +94,11 @@ async function installDependencies(projectDir) {
 
 async function launchExpo(projectDir, web) {
     //openTerminal(`cd ${getExpoProjectDir(projectDir)}; expo start --web`);
-    await exec('expo', ['start', web ? '--web': null], {
+    const args = ['start'];
+    if (web) {
+        args.push('--web');
+    }
+    await exec('expo', args, {
         cwd: getExpoProjectDir(projectDir)
     });
 }

@@ -108,6 +108,17 @@ wm-reactnative build ios "/path/to/src" \
 ~~~
 
 
+## Run Expo locally
+
+### Requirements
+
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
+|--|--|
+| **preview_url** | app preview url |
+|**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
+|**\-\-web**|**OPTIONAL:** false <br> if true, app is automatically launched in browser |
+
+
 ## Additional Information
 
 1. Destination folder path is logged at the start of the build.
