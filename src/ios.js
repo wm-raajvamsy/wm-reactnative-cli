@@ -126,6 +126,12 @@ async function invokeiosBuild(args) {
         fs.mkdirSync(ppFolder, {
             recursive: true
         })
+        const targetProvisionsalPath = `${ppFolder}/${provisionuuid}.mobileprovision`;
+        fs.copyFileSync(provisionalFile, targetProvisionsalPath);
+        logger.info({
+            label: loggerLabel,
+            message: `copied provisionalFile (${provisionalFile}).`
+        });
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
 
         try {
