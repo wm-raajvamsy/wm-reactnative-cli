@@ -62,6 +62,17 @@ function updateSigningConfig(content) {
     return content;
 }
 
+function updateJSEnginePreference() {
+    const jsEngine = require(config.src + 'app.json').expo.jsEngine;
+    const gradlePropsPath = config.src + 'android/gradle.properties';
+    if (fs.existsSync(gradlePropsPath)) {
+        let data = fs.readFileSync(gradlePropsPath, 'utf8');
+        data = data.replace(/expo\.jsEngine=(jsc|hermes)/, `expo.jsEngine=${jsEngine}`)
+        fs.writeFileSync(gradlePropsPath, data);
+        console.log(`js engine is set as ${jsEngine}`);
+    }
+}
+
 function setSigningConfigInGradle() {
     const gradlePath = config.src + 'android/app/build.gradle';
 
@@ -179,6 +190,7 @@ async function invokeAndroidBuild(args) {
         }
     }
 
+    updateJSEnginePreference();
     const appName = config.metaData.name;
     await updateSettingsGradleFile(appName);
 

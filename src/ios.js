@@ -75,6 +75,17 @@ async function getUsername() {
     return content[0];
 }
 
+function updateJSEnginePreference() {
+    const jsEngine = require(config.src + 'app.json').expo.jsEngine;
+    const podJSON = config.src + 'ios/Podfile.properties.json';
+    if (fs.existsSync(podJSON)) {
+        let data = require(podJSON, 'utf8');
+        data['expo.jsEngine'] = jsEngine;
+        fs.writeFileSync(podJSON, JSON.stringify(data, null, 4));
+        console.log(`js engine is set as ${jsEngine}`);
+    }
+}
+
 async function invokeiosBuild(args) {
     const certificate = args.iCertificate;
     const certificatePassword = args.iCertificatePassword;
@@ -92,11 +103,11 @@ async function invokeiosBuild(args) {
                 errors: errors
             }
         }
+        updateJSEnginePreference();
         const random = Date.now();
         const username = await getUsername();
         const keychainName = `wm-reactnative-${random}.keychain`;
         const provisionuuid =  await extractUUID(provisionalFile);
-
         let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
             shell: true
         });
