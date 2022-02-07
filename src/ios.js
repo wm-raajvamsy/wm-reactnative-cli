@@ -82,7 +82,10 @@ function updateJSEnginePreference() {
         let data = require(podJSON, 'utf8');
         data['expo.jsEngine'] = jsEngine;
         fs.writeFileSync(podJSON, JSON.stringify(data, null, 4));
-        console.log(`js engine is set as ${jsEngine}`);
+        logger.info({
+            label: loggerLabel,
+            message: `js engine is set as ${jsEngine}`
+        });
     }
 }
 

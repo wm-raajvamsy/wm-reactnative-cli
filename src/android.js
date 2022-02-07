@@ -69,7 +69,10 @@ function updateJSEnginePreference() {
         let data = fs.readFileSync(gradlePropsPath, 'utf8');
         data = data.replace(/expo\.jsEngine=(jsc|hermes)/, `expo.jsEngine=${jsEngine}`)
         fs.writeFileSync(gradlePropsPath, data);
-        console.log(`js engine is set as ${jsEngine}`);
+        logger.info({
+            label: loggerLabel,
+            message: `js engine is set as ${jsEngine}`
+        });
     }
 }
 
