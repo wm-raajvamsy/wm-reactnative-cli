@@ -106,7 +106,7 @@ async function launchExpo(projectDir, web) {
 
 async function downloadProject(previewUrl) {
     const tempFile = `${tempDir}/changes_${Date.now()}.zip`;
-    const res = await axios.get(`${previewUrl}/services/project/exportChanges?after=${lastSyncTime}`, {
+    const res = await axios.get(`${previewUrl}/resources/ui-source.zip?after=${lastSyncTime}`, {
         timeout: MAX_REQUEST_ALLOWED_TIME,
         responseType: 'stream'
     }).catch(error => error.response);
