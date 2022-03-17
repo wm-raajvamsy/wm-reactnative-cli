@@ -30,13 +30,11 @@ function launchServiceProxy(previewUrl) {
                 }).join('; ');
             });;
         }
-        if (req.method === 'OPTIONS') {
-            proxyRes.headers['access-control-allow-origin'] = `http://${ip}:19006`;
-            proxyRes.headers['access-control-allow-methods'] = proxyRes.headers['access-control-allow-methods'] || 'GET, PUT, POST, DELETE, OPTIONS';
-            proxyRes.headers['access-control-allow-headers'] = proxyRes.headers['access-control-allow-headers'] || 'x-wm-xsrf-token';
-            proxyRes.headers['access-control-allow-credentials'] = true;
-            proxyRes.headers['access-control-max-age'] = 1600;
-        }
+        proxyRes.headers['access-control-allow-origin'] = `http://localhost:19006`;
+        proxyRes.headers['access-control-allow-methods'] = 'GET, PUT, POST, DELETE, OPTIONS';
+        //proxyRes.headers['access-control-allow-headers'] = proxyRes.headers['access-control-allow-headers'] || 'x-wm-xsrf-token';
+        proxyRes.headers['access-control-allow-credentials'] = true;
+        proxyRes.headers['access-control-max-age'] = 1600;
     }).listen(proxyPort);
     logger.info({
         label: loggerLabel,
