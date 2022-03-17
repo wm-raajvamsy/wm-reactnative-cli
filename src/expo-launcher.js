@@ -6,19 +6,15 @@ const httpProxy = require('http-proxy');
 const {
     exec
 } = require('./exec');
-const rootDir = `${require('os').homedir()}/.wm-reactnative-cli`;
 const {VERSIONS, hasValidExpoVersion} = require('./requirements');
-const tempDir = rootDir + '/temp';
 const axios = require('axios');
+const { setupProject } = require('./project-sync.service'); 
 //const openTerminal =  require('open-terminal').default;
-const MAX_REQUEST_ALLOWED_TIME = 5 * 60 * 1000;
 const proxyPort = 19009;
-fs.mkdirSync(tempDir, {recursive: true});
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
 }
-let lastSyncTime = 0;
 
 function launchServiceProxy(previewUrl) {
     const ip = getIpAddress();
@@ -62,7 +58,7 @@ function getIpAddress() {
     return 'localhost';
 }
 
-async function transpile(projectDir) {
+async function transpile(projectDir, previewUrl, useServiceProxy) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
@@ -78,6 +74,15 @@ async function transpile(projectDir) {
         });
         codegen = `${wmProjectDir}/temp/node_modules/@wavemaker/rn-codegen/index.js`;
     }
+    const wmProjectDir = getWmProjectDir(projectDir);
+    const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
+    const config = require(configJSONFile);
+    if (useServiceProxy) {
+        config.serverPath = `http://${getIpAddress()}:${proxyPort}`;
+    } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
+        config.serverPath = previewUrl;
+    }
+    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     await exec('node',
         [codegen, 'transpile', '--profile="expo-preview"',
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
@@ -104,35 +109,6 @@ async function launchExpo(projectDir, web) {
     });
 }
 
-async function downloadProject(previewUrl) {
-    const tempFile = `${tempDir}/changes_${Date.now()}.zip`;
-    const res = await axios.get(`${previewUrl}/resources/ui-source.zip?after=${lastSyncTime}`, {
-        timeout: MAX_REQUEST_ALLOWED_TIME,
-        responseType: 'stream'
-    }).catch(error => error.response);
-    lastSyncTime = (res.headers && res.headers['x-wm-exported-at']) || lastSyncTime;
-    if (res.status === 304) {
-        return '';
-    }
-    if (res.status !== 200) {
-        throw new Error('failed to download the zip');
-    }
-    await new Promise((resolve, reject) => {
-        const fw = fs.createWriteStream(tempFile);
-        res.data.pipe(fw);
-        fw.on('error', err => {
-            reject(err);
-            fw.close();
-        });
-        fw.on('close', resolve);
-    });
-    logger.info({
-        label: loggerLabel,
-        message: 'downloaded the base zip.'
-    });
-    return tempFile;
-}
-
 function clean(path) {
     if (fs.existsSync(path)) {
         rimraf.sync(path);
@@ -140,60 +116,51 @@ function clean(path) {
     fs.mkdirSync(path, {recursive: true});
 }
 
+async function getProjectName(previewUrl) {
+    return JSON.parse(
+        (await axios.get(`${previewUrl}/services/application/wmProperties.js`))
+            .data.split('=')[1].replace(';', '')).displayName;
+}
+
 function getWmProjectDir(projectDir) {
-    return `${projectDir}/wm-project`;
+    return `${projectDir}/src/main/webapp`;
 }
 
 function getExpoProjectDir(projectDir) {
-    return `${projectDir}/expo-project`;
+    return `${projectDir}/generated-rn-app`;
 }
 
-async function setup(zipFile, previewUrl, useServiceProxy, _clean) {
-    const tempProjectDir = `${tempDir}/${Date.now()}`;
-    await exec('unzip', ['-o', zipFile, '-d', tempProjectDir], {
-        log: false
-    });
-    const configJSONFile = `${tempProjectDir}/wm_rn_config.json`;
-    const config = require(configJSONFile);
-    if (useServiceProxy) {
-        config.serverPath = `http://${getIpAddress()}:${proxyPort}`;
-    } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
-        config.serverPath = previewUrl;
-    }
-    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
-    const projectDir = `${rootDir}/build/${config.id}`;
-    const wmProjectDir = getWmProjectDir(projectDir);
-    const expoProjectDir = getExpoProjectDir(projectDir);
+async function setup(previewUrl, useServiceProxy, _clean) {
+    const projectName = await getProjectName(previewUrl);
+    const projectDir = `${global.rootDir}/wm-projects/${projectName}`;
     if (_clean) {
-        clean(wmProjectDir);
-        clean(expoProjectDir);
+        clean(projectDir);
+    } else {
+        fs.mkdirpSync(getWmProjectDir(previewUrl));
     }
-    fs.copySync(tempProjectDir, wmProjectDir);
-    rimraf.sync(tempProjectDir);
-    rimraf.sync(zipFile);
-    return projectDir;
+    const syncProject = await setupProject(previewUrl, projectName, projectDir);
+    await transpile(projectDir, previewUrl, useServiceProxy);
+    return {projectDir, syncProject};
 }
 
-async function syncLocalWMProject(previewUrl, useServiceProxy, clean) {
-    const zipFile = await downloadProject(previewUrl);
-    if (zipFile) {
-        const projectDir = await setup(zipFile, previewUrl, useServiceProxy, clean);
-        await transpile(projectDir);
-        return projectDir;
-    }
-}
-
-async function checkForChanges(previewUrl, useServiceProxy) {
+async function watchProjectChanges(previewUrl, useServiceProxy, onChange, lastModifiedOn) {
     try {
-        await syncLocalWMProject(previewUrl, useServiceProxy);
+        const response = await axios.get(`${previewUrl}/rn-bundle/index.html`, {
+            headers: {
+                'if-modified-since' : lastModifiedOn || new Date().toString()
+            }
+        }).catch((e) => e.response);
+        if (response.status === 200 && response.data.indexOf('<title>WaveMaker Preview</title>') > 0) {
+            lastModifiedOn = response.headers['last-modified'];
+            onChange();
+        }
     } catch(e) {
         logger.debug({
             label: loggerLabel,
             message: e
         });
     }
-    const current = Date.now();
-    setTimeout(() => checkForChanges(previewUrl, useServiceProxy, current), 5000);
+    setTimeout(() => watchProjectChanges(previewUrl, useServiceProxy, onChange, lastModifiedOn), 5000);
 }
 
 async function runExpo(previewUrl, web, clean) {
@@ -207,13 +174,15 @@ async function runExpo(previewUrl, web, clean) {
             });
             await installGlobalNpmPackage('expo-cli@' + VERSIONS.EXPO);
         }
-        const projectDir = await syncLocalWMProject(previewUrl, useServiceProxy, clean);
+        const {projectDir, syncProject} = await setup(previewUrl, useServiceProxy, clean);
         await installDependencies(projectDir);
         if (useServiceProxy) {
             launchServiceProxy(previewUrl);
         }
         launchExpo(projectDir, web);
-        checkForChanges(previewUrl, useServiceProxy);
+        watchProjectChanges(previewUrl, useServiceProxy, () => {
+            syncProject().then(() => transpile(projectDir, previewUrl, useServiceProxy));
+        });
     } catch(e) {
         logger.error({
             label: loggerLabel,
