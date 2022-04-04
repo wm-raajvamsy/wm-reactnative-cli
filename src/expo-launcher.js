@@ -1,5 +1,7 @@
 const logger = require('./logger');
 const fs = require('fs-extra');
+const http = require('http');
+const request = require('request');
 const os = require('os');
 const rimraf = require("rimraf");
 const httpProxy = require('http-proxy');
@@ -17,28 +19,33 @@ function installGlobalNpmPackage(package) {
 }
 
 function launchServiceProxy(previewUrl) {
-    const ip = getIpAddress();
-    httpProxy.createProxyServer({
-        target: previewUrl,
-        changeOrigin: true
-    }).on('proxyRes', function (proxyRes, req, res) {
-        const cookies = proxyRes.headers['set-cookie'];
-        if (cookies) {
-            proxyRes.headers['set-cookie'] = cookies.map(c => {
-                return c.split(';').map(s => s.trim()).filter(cs => {
-                    return !(cs.startsWith('Path') || cs.startsWith('Secure') || cs.startsWith('HttpOnly'));
-                }).join('; ');
-            });;
+    const proxy =  httpProxy.createProxyServer({});
+    http.createServer(function (req, res) {
+        let tUrl = req.url;
+        if (req.url.startsWith('/_/')) {
+            req.url = req.url.substring(3);
+            proxy.web(req, res, {
+                target: previewUrl,
+                xfwd: false,
+                changeOrigin: true,
+                cookiePathRewrite: {
+                    "*": ""
+                }
+            });
+            tUrl = `${previewUrl}/${req.url.substring(3)}`;
+        } else {
+            tUrl = `http://localhost:19006${req.url}`;
+            req.pipe(request(tUrl)).pipe(res);
         }
-        proxyRes.headers['access-control-allow-origin'] = `http://localhost:19006`;
-        proxyRes.headers['access-control-allow-methods'] = 'GET, PUT, POST, DELETE, OPTIONS';
-        //proxyRes.headers['access-control-allow-headers'] = proxyRes.headers['access-control-allow-headers'] || 'x-wm-xsrf-token';
-        proxyRes.headers['access-control-allow-credentials'] = true;
-        proxyRes.headers['access-control-max-age'] = 1600;
-    }).listen(proxyPort);
+    }).listen(80);
+    proxy.on('proxyReq', function(proxyReq, req, res, options) {
+        proxyReq.setHeader('sec-fetch-mode', 'no-cors');
+        proxyReq.setHeader('origin', previewUrl);
+        proxyReq.setHeader('referer', previewUrl);
+    });
     logger.info({
         label: loggerLabel,
-        message: `Service proxy launched on ${proxyPort} .`
+        message: `Service proxy launched at http://localhost .`
     });
 }
 
@@ -76,7 +83,7 @@ async function transpile(projectDir, previewUrl, useServiceProxy) {
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
     const config = require(configJSONFile);
     if (useServiceProxy) {
-        config.serverPath = `http://${getIpAddress()}:${proxyPort}`;
+        config.serverPath = `http://localhost/_`;
     } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
         config.serverPath = previewUrl;
     }
