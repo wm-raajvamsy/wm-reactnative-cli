@@ -86,11 +86,22 @@ function setSigningConfigInGradle() {
     generateAab();
 }
 
+function addKeepFileEntries() {
+    fs.mkdirSync(config.src + 'android/app/src/main/res/raw/', {recursive: true});
+    const data = `<?xml version="1.0" encoding="utf-8"?>
+    <resources xmlns:tools="http://schemas.android.com/tools"
+tools:keep="@raw/*_fontawesome,@raw/*__streamlinelighticon, @raw/*_wavicon, @raw/*_streamlineregularicon" />`;
+    fs.appendFileSync(config.src + 'android/app/src/main/res/raw/keep.xml', data);
+}
+
+
 async function generateAab(packageType) {
     try {
+        // addKeepFileEntries();
         await exec('./gradlew', ['clean'], {
             cwd: config.src + 'android'
         });
+        logger.info('****** invoking aab build *****');
         if (packageType === 'bundle') {
             await exec('./gradlew', [':app:bundleRelease'], {
                 cwd: config.src + 'android'
@@ -110,36 +121,6 @@ async function generateAab(packageType) {
     }
 }
 
-function setDebugFlagInGradle(content) {
-    let newContent;
-    if (content.search(`entryFile: "index.js"`) === -1) {
-    newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
-        entryFile: "index.js",
-        bundleAssetName: "index.android.bundle",
-        bundleInDebug: true,
-        devDisabledInDebug: true,`);
-    } else {
-        newContent = content.replace(/bundleInDebug\: false/gm, `bundleInDebug: true`)
-            .replace(/devDisabledInDebug\: false/gm, `devDisabledInDebug: true`)
-            .replace(/bundleInRelease\: true/gm, `bundleInRelease: false`);
-    }
-	return newContent;
-}
-function setReleaseFlagInGradle(content) {
-    let newContent;
-    if (content.search(`entryFile: "index.js"`) === -1) {
-        newContent = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
-        entryFile: "index.js",
-        bundleAssetName: "index.android.bundle",
-        bundleInRelease: true,`);
-    } else {
-        newContent = content.replace(/bundleInDebug\: true/gm, `bundleInDebug: false,
-        bundleInRelease: true,`).replace(/devDisabledInDebug\: true/gm, ``)
-            .replace(/bundleInRelease\: false/gm, `bundleInRelease: true`);
-    }
-    return newContent;
-}
-
 const endWith = (str, suffix) => {
     if (!str.endsWith(suffix)) {
         return str += suffix;
@@ -153,22 +134,66 @@ function findFile(path, nameregex) {
     return endWith(path, '/') + f;
 }
 
-async function updateAndroidBuildGradleFile(type) {
-    const path = config.src + 'android/app/build.gradle';
-    let data = fs.readFileSync(path, 'utf8');
-    console.log(data);
-
-    let content = fs.readFileSync(path, 'utf8');
-    content = type === 'release' ? await setReleaseFlagInGradle(content) : await setDebugFlagInGradle(content);
-    await fs.writeFileSync(path, content);
+function addProguardRule() {
+    const proguardRulePath = config.src + 'android/app/proguard-rules.pro';
+    if (fs.existsSync(proguardRulePath)) {
+        var data = `-keep class com.facebook.react.turbomodule.** { *; }`;
+        fs.appendFileSync(proguardRulePath,data, 'utf8');
+        logger.info('***** added proguard rule ******')
+    }
 }
 
-async function updateSettingsGradleFile(appName) {
+function updateOptimizationFlags() {
+    logger.info('***** into optimization ******')
+    const buildGradlePath = config.src + 'android/app/build.gradle';
+    if (fs.existsSync(buildGradlePath)) {
+        let content = fs.readFileSync(buildGradlePath, 'utf8');
+        if (content.search(`def enableProguardInReleaseBuilds = false`) > -1) {
+            content = content.replace(/def enableProguardInReleaseBuilds = false/gm, `def enableProguardInReleaseBuilds = true`)
+                .replace(/minifyEnabled enableProguardInReleaseBuilds/gm, `minifyEnabled enableProguardInReleaseBuilds\n shrinkResources false\n`);
+        }
+        fs.writeFileSync(buildGradlePath, content);
+    }
+}
+
+function updateAndroidBuildGradleFile(type) {
+    const buildGradlePath = config.src + 'android/app/build.gradle';
+    if (fs.existsSync(buildGradlePath)) {
+        let content = fs.readFileSync(buildGradlePath, 'utf8');
+        if (type === 'release') {
+            if (content.search(`entryFile: "index.js"`) === -1) {
+                content = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
+        entryFile: "index.js",
+        bundleAssetName: "index.android.bundle",
+        bundleInRelease: true,`);
+            } else {
+                content = content.replace(/bundleInDebug\: true/gm, `bundleInDebug: false,
+        bundleInRelease: true,`).replace(/devDisabledInDebug\: true/gm, ``)
+                    .replace(/bundleInRelease\: false/gm, `bundleInRelease: true`);
+            }
+        } else {
+            if (content.search(`entryFile: "index.js"`) === -1) {
+                content = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
+        entryFile: "index.js",
+        bundleAssetName: "index.android.bundle",
+        bundleInDebug: true,
+        devDisabledInDebug: true,`);
+            } else {
+                content = content.replace(/bundleInDebug\: false/gm, `bundleInDebug: true`)
+                    .replace(/devDisabledInDebug\: false/gm, `devDisabledInDebug: true`)
+                    .replace(/bundleInRelease\: true/gm, `bundleInRelease: false`);
+            }
+        }
+        fs.writeFileSync(buildGradlePath, content);
+    }
+}
+
+function updateSettingsGradleFile(appName) {
     const path = config.src + 'android/settings.gradle';
     let content = fs.readFileSync(path, 'utf8');
     if (content.search(/^rootProject.name = \'\'/gm) > -1) {
         content = content.replace(/^rootProject.name = \'\'/gm, `rootProject.name = ${appName}`);
-        await fs.writeFileSync(path, content);
+        fs.writeFileSync(path, content);
     }
 }
 
@@ -195,8 +220,7 @@ async function invokeAndroidBuild(args) {
 
     updateJSEnginePreference();
     const appName = config.metaData.name;
-    await updateSettingsGradleFile(appName);
-
+    updateSettingsGradleFile(appName);
     if (args.buildType === 'release') {
         const errors = validateForAndroid(keyStore, storePassword, keyAlias, keyPassword);
         if (errors.length > 0) {
@@ -205,10 +229,12 @@ async function invokeAndroidBuild(args) {
                 errors: errors
             }
         }
-        await updateAndroidBuildGradleFile(args.buildType);
+        addProguardRule();
+        updateOptimizationFlags();
+        updateAndroidBuildGradleFile(args.buildType);
         await generateSignedApk(keyStore, storePassword, keyAlias, keyPassword, args.packageType);
     } else {
-        await updateAndroidBuildGradleFile(args.buildType);
+        updateAndroidBuildGradleFile(args.buildType);
         logger.info({
             label: loggerLabel,
             message: 'Updated build.gradle file with debug configuration'

@@ -29,70 +29,43 @@ function getFileSize(path) {
 }
 
 async function updatePackageJsonFile(path) {
-    return await new Promise(resolve => {
-        try {
-            fs.readFile(path, async function(error, data) {
-                if (error) {
-                    throw error;
-                }
-                var jsonData = JSON.parse(data);
-                jsonData['main'] = "index";
-                await fs.writeFile(path, JSON.stringify(jsonData), error => {
-                    if (error) {
-                        throw error;
-                    }
-                    logger.info({
-                        'label': loggerLabel,
-                        'message': 'updated package.json file'
-                    });
-                    resolve('success');
-                });
-            })
-        } catch (e) {
-            resolve('error', e);
-        }
-    })
+    try {
+        let data = fs.readFileSync(path, 'utf-8');
+        const jsonData = JSON.parse(data);
+        jsonData['main'] = "index";
+        fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
+        logger.info({
+            'label': loggerLabel,
+            'message': 'updated package.json file'
+        });
+    } catch (e) {
+        resolve('error', e);
+    }
 }
 
-async function updateAppJsonFile(content, src) {
-    return await new Promise(resolve => {
-        try {
-            const path = (src || config.src) + 'app.json';
-            if (fs.existsSync(path)) {
-                fs.readFile(path, async function(error, data) {
-                    if (error) {
-                        throw error;
-                    }
-                    var jsonData = JSON.parse(data);
-                    if (content) {
-                        Object.assign(jsonData['expo'], content);
-                    }
-                    if (config.metaData.id) {
-                        jsonData['expo']['android']['package'] = config.metaData.id;
-                        jsonData['expo']['ios']['bundleIdentifier'] = config.metaData.id;
-                    }
-                    jsonData['expo']['jsEngine'] = config.metaData.preferences.enableHermes ? 'hermes' : 'jsc';
-                    if (config.metaData.icon) {
-                        jsonData['expo']['icon'] = config.metaData.icon.src;
-                        jsonData['expo']['splash']['image'] = config.metaData.splash.src;
-                        jsonData['expo']['android']['adaptiveIcon']['foregroundImage'] = config.metaData.icon.src;
-                    }
-                    await fs.writeFile(path, JSON.stringify(jsonData), error => {
-                        if (error) {
-                            throw error;
-                        }
-                        resolve('success');
-                        logger.info({
-                            'label': loggerLabel,
-                            'message': 'updated app.json file'
-                        });
-                    })
-                });
-            }
-        } catch (e) {
-            resolve('error', e);
-        }
+function updateAppJsonFile(src) {
+    const path = (src || config.src) + 'app.json';
+    logger.info({
+        label: loggerLabel,
+        message: 'path at app.json ' + path
     })
+    try {
+        if (fs.existsSync(path)) {
+            let data = fs.readFileSync(path, 'utf8');
+            const jsonData = JSON.parse(data);
+            jsonData['expo']['name'] = config.metaData.name;
+            jsonData['expo']['slug'] = config.metaData.name;
+            jsonData['expo']['android']['package'] = config.metaData.id;
+            jsonData['expo']['ios']['bundleIdentifier'] = config.metaData.id;
+            jsonData['expo']['jsEngine'] = config.metaData.preferences.enableHermes ? 'hermes' : 'jsc';
+            jsonData['expo']['icon'] = config.metaData.icon.src;
+            jsonData['expo']['splash']['image'] = config.metaData.splash.src;
+            jsonData['expo']['android']['adaptiveIcon']['foregroundImage'] = config.metaData.icon.src;
+            fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
+        }
+    } catch (e) {
+        resolve('error', e);
+    }
 }
 
  async function build(args) {
@@ -147,6 +120,7 @@ async function updateAppJsonFile(content, src) {
 
     try {
         let result;
+        clearUnusedAssets(config.platform);
         if (config.platform === 'android') {
             result = await android.invokeAndroidBuild(args);
         } else if (config.platform === 'ios') {
@@ -332,21 +306,14 @@ async function ejectProject(args) {
                 success: false
             }
         }
-        await updateAppJsonFile({
-            'name': config.metaData.name,
-            'slug': config.metaData.name
-        }, config.src);
+        updateAppJsonFile(config.src);
+        logger.info({
+            label: loggerLabel,
+            message: 'app.json updated.... ' + args.dest
+        })
         await updatePackageJsonFile(config.src + 'package.json');
         await exec('yarn', ['install'], {
             cwd: config.src
-        });
-        // expo eject checks whether src is a git repo or not
-        await exec('git', ['init'], {
-            cwd: config.src
-        });
-        logger.info({
-            'label': loggerLabel,
-            'message': 'invoking expo eject'
         });
         await exec('expo', ['eject'], {
             cwd: config.src
@@ -368,13 +335,54 @@ async function ejectProject(args) {
                 'message': 'copied the app-rn-runtime folder'
             })
         }
-        await writeWmRNConfig({ejected: true});
     } catch (e) {
         logger.error({
             label: loggerLabel,
             message: args.platform + ' eject project Failed. Due to :' + e
         });
         return { errors: e, success : false };
+    }
+}
+
+function clearUnusedAssets(platform) {
+    const themeFile = config.src + 'app.theme.js';
+    let content = fs.readFileSync(themeFile, 'utf8');
+
+    if (platform === 'ios') {
+        content = content.replace(/import androidTheme from \'.\/theme\/android\/style.js\';/gm, ``);
+    } else {
+        content = content.replace(/import iosTheme from \'.\/theme\/ios\/style.js\';/gm, ``);
+    }
+    fs.writeFileSync(themeFile, content);
+
+    const themeVariablesFile = config.src + 'app.theme.variables.js';
+    let variablesContent = fs.readFileSync(themeVariablesFile, 'utf8');
+
+    if (platform === 'ios') {
+        variablesContent = variablesContent.replace(/import androidThemeVariables from \'.\/theme\/android\/variables.js\';/gm, ``);
+    } else {
+        variablesContent = variablesContent.replace(/import iosThemeVariables from \'.\/theme\/ios\/variables.js\';/gm, ``);
+    }
+    fs.writeFileSync(themeVariablesFile, variablesContent);
+
+    logger.info({
+        'label': loggerLabel,
+        'message': '***** updated theme related files based on selected platform ...***'
+    });
+
+    const folderToExclude = platform === 'android' ? 'ios' : 'android';
+    const path = config.src + 'theme/' + folderToExclude;
+    if (fs.existsSync(path)) {
+        const fsStat = fs.lstatSync(path);
+        if (fsStat.isDirectory()) {
+            fs.removeSync(path);
+        } else if (fsStat.isFile()) {
+            fs.unlinkSync(path);
+        }
+        logger.info({
+            'label': loggerLabel,
+            'message': '***** Removed the unused platform theme folder ...***'
+        });
     }
 }
 
