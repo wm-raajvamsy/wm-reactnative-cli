@@ -83,7 +83,7 @@ async function transpile(projectDir, previewUrl, useServiceProxy) {
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
     const config = require(configJSONFile);
     if (useServiceProxy) {
-        config.serverPath = `http://localhost/_`;
+        config.serverPath = `http://localhost:${proxyPort}/_`;
     } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
         config.serverPath = previewUrl;
     }
