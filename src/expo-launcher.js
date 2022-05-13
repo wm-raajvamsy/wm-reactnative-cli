@@ -37,7 +37,7 @@ function launchServiceProxy(previewUrl) {
             tUrl = `http://localhost:19006${req.url}`;
             req.pipe(request(tUrl)).pipe(res);
         }
-    }).listen(80);
+    }).listen(proxyPort);
     proxy.on('proxyReq', function(proxyReq, req, res, options) {
         proxyReq.setHeader('sec-fetch-mode', 'no-cors');
         proxyReq.setHeader('origin', previewUrl);
