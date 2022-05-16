@@ -13,6 +13,7 @@ const axios = require('axios');
 const { setupProject } = require('./project-sync.service'); 
 //const openTerminal =  require('open-terminal').default;
 const proxyPort = 19009;
+const proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
@@ -45,7 +46,7 @@ function launchServiceProxy(previewUrl) {
     });
     logger.info({
         label: loggerLabel,
-        message: `Service proxy launched at http://localhost .`
+        message: `Service proxy launched at ${proxyUrl} .`
     });
 }
 
@@ -83,7 +84,7 @@ async function transpile(projectDir, previewUrl, useServiceProxy) {
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
     const config = require(configJSONFile);
     if (useServiceProxy) {
-        config.serverPath = `http://localhost:${proxyPort}/_`;
+        config.serverPath = `${proxyUrl}/_`;
     } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
         config.serverPath = previewUrl;
     }
