@@ -8,12 +8,12 @@ const {
     exec
 } = require('./exec');
 const loggerLabel = 'rn-cli-requirements';
-const VERSIONS = {
-    'NODE': '12.0.0',
+let VERSIONS = {
+    'NODE': '14.0.0',
     'POD' : '1.9.0',
-    'JAVA': '1.8.0',
-    'REACT_NATIVE': '0.63.4',
-    'EXPO': '4.7.3',
+    'JAVA': '11.0.0',
+    'REACT_NATIVE': '0.68.2',
+    'EXPO': '5.4.4',
 }
 
 // check if expo cli is installed globally or not
