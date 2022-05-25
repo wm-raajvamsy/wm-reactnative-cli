@@ -8,7 +8,7 @@ const {
     exec
 } = require('./exec');
 const loggerLabel = 'rn-cli-requirements';
-const VERSIONS = {
+let VERSIONS = {
     'NODE': '14.0.0',
     'POD' : '1.9.0',
     'JAVA': '11.0.0',

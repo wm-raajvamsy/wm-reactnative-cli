@@ -3,7 +3,7 @@ const logger = require('./logger');
 const plist = require('plist');
 const path = require('path');
 const android = require('./android');
-const { showConfirmation } = require('./requirements');
+let { showConfirmation, VERSIONS } = require('./requirements');
 
 const {
     exec
@@ -298,6 +298,10 @@ async function ejectProject(args) {
         }
         config.platform = args.platform;
         config.buildType = args.buildType;
+
+        if (args.platform !== 'android') {
+            VERSIONS.JAVA = '1.8.0';
+        }
 
         if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
             !await checkForGradleAvailability() || !await isGitInstalled() || !await hasValidExpoVersion()) {
