@@ -10,7 +10,7 @@ const {
 } = require('./exec');
 const {VERSIONS, hasValidExpoVersion} = require('./requirements');
 const axios = require('axios');
-const { setupProject } = require('./project-sync.service'); 
+const { setupProject } = require('./project-sync.service');
 //const openTerminal =  require('open-terminal').default;
 const proxyPort = 19009;
 const proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
@@ -98,10 +98,24 @@ async function transpile(projectDir, previewUrl, useServiceProxy) {
     });
 }
 
-async function installDependencies(projectDir) {
-    await exec('npm', ['install'], {
-        cwd: getExpoProjectDir(projectDir)
-    });
+function updateReanimatedLib(projectDir) {
+    let path = getExpoProjectDir(projectDir) + '/package.json';
+
+    let packageJson = fs.readJSONSync(path);
+    packageJson['dependencies']['react-native-reanimated'] = 'https://github.com/software-mansion/react-native-reanimated.git#429ba3e';
+    fs.writeFileSync(path, JSON.stringify(packageJson, null, 4));
+}
+
+async function installDependencies(projectDir, force) {
+    if (force) {
+        await exec('npm', ['install', '--force'], {
+            cwd: getExpoProjectDir(projectDir)
+        });
+    } else {
+        await exec('npm', ['install'], {
+            cwd: getExpoProjectDir(projectDir)
+        });
+    }
 }
 
 async function launchExpo(projectDir, web) {
@@ -181,7 +195,12 @@ async function runExpo(previewUrl, web, clean) {
             await installGlobalNpmPackage('expo-cli@' + VERSIONS.EXPO);
         }
         const {projectDir, syncProject} = await setup(previewUrl, useServiceProxy, clean);
-        await installDependencies(projectDir);
+
+        // expo android app throws error with the latest reanimated version hence fixing it by adding particular version.
+        if (!web) {
+            updateReanimatedLib(projectDir);
+        }
+        await installDependencies(projectDir, !web);
         if (useServiceProxy) {
             launchServiceProxy(previewUrl);
         }
