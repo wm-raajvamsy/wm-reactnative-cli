@@ -98,14 +98,6 @@ async function transpile(projectDir, previewUrl, useServiceProxy) {
     });
 }
 
-function updateReanimatedLib(projectDir) {
-    let path = getExpoProjectDir(projectDir) + '/package.json';
-
-    let packageJson = fs.readJSONSync(path);
-    packageJson['dependencies']['react-native-reanimated'] = 'https://github.com/software-mansion/react-native-reanimated.git#429ba3e';
-    fs.writeFileSync(path, JSON.stringify(packageJson, null, 4));
-}
-
 async function installDependencies(projectDir, force) {
     if (force) {
         await exec('npm', ['install', '--force'], {
@@ -196,10 +188,6 @@ async function runExpo(previewUrl, web, clean) {
         }
         const {projectDir, syncProject} = await setup(previewUrl, useServiceProxy, clean);
 
-        // expo android app throws error with the latest reanimated version hence fixing it by adding particular version.
-        if (!web) {
-            updateReanimatedLib(projectDir);
-        }
         await installDependencies(projectDir, !web);
         if (useServiceProxy) {
             launchServiceProxy(previewUrl);
