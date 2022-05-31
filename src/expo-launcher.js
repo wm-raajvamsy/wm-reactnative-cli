@@ -168,6 +168,16 @@ async function watchProjectChanges(previewUrl, useServiceProxy, onChange, lastMo
     }
     setTimeout(() => watchProjectChanges(previewUrl, useServiceProxy, onChange, lastModifiedOn), 5000);
 }
+// expo android, ios are throwing errors with reanimated plugin
+// hence modifying the 2.8.0version and just adding chrome debugging fix to this.
+function updateReanimatedPlugin(projectDir) {
+    let path = getExpoProjectDir(projectDir);
+    path = path + '/node_modules/react-native-reanimated/src/reanimated2/NativeReanimated/NativeReanimated.ts';
+    let content = fs.readFileSync(path, 'utf-8');
+    console.log(content);
+    content = content.replace(/global.__reanimatedModuleProxy === undefined/gm, `global.__reanimatedModuleProxy === undefined && native`);
+    fs.writeFileSync(path, content);
+}
 
 async function runExpo(previewUrl, web, clean) {
     const useServiceProxy = !!web;
@@ -183,6 +193,7 @@ async function runExpo(previewUrl, web, clean) {
         const {projectDir, syncProject} = await setup(previewUrl, useServiceProxy, clean);
 
         await installDependencies(projectDir);
+        updateReanimatedPlugin(projectDir);
         if (useServiceProxy) {
             launchServiceProxy(previewUrl);
         }
