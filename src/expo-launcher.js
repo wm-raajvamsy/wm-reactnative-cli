@@ -98,16 +98,10 @@ async function transpile(projectDir, previewUrl, useServiceProxy) {
     });
 }
 
-async function installDependencies(projectDir, force) {
-    if (force) {
-        await exec('npm', ['install', '--force'], {
-            cwd: getExpoProjectDir(projectDir)
-        });
-    } else {
-        await exec('npm', ['install'], {
-            cwd: getExpoProjectDir(projectDir)
-        });
-    }
+async function installDependencies(projectDir) {
+    await exec('npm', ['install'], {
+        cwd: getExpoProjectDir(projectDir)
+    });
 }
 
 async function launchExpo(projectDir, web) {
@@ -188,7 +182,7 @@ async function runExpo(previewUrl, web, clean) {
         }
         const {projectDir, syncProject} = await setup(previewUrl, useServiceProxy, clean);
 
-        await installDependencies(projectDir, !web);
+        await installDependencies(projectDir);
         if (useServiceProxy) {
             launchServiceProxy(previewUrl);
         }
