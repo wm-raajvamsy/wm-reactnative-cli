@@ -174,7 +174,6 @@ function updateReanimatedPlugin(projectDir) {
     let path = getExpoProjectDir(projectDir);
     path = path + '/node_modules/react-native-reanimated/src/reanimated2/NativeReanimated/NativeReanimated.ts';
     let content = fs.readFileSync(path, 'utf-8');
-    console.log(content);
     content = content.replace(/global.__reanimatedModuleProxy === undefined/gm, `global.__reanimatedModuleProxy === undefined && native`);
     fs.writeFileSync(path, content);
 }
