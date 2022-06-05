@@ -7,7 +7,7 @@ The main goal of wm-reactnative-cli is to simplify generation of APK or IPA for 
 ### Command to Install
 
 ~~~
-npm install -g https://github.com/wavemaker/wm-reactnative-cli
+npm install -g @wavemaker/wm-reactnative-cli
 ~~~
 
 ## Android Build
@@ -15,13 +15,12 @@ npm install -g https://github.com/wavemaker/wm-reactnative-cli
 ### Requirements
 
 -   Linux or MAC or Windows
--   Node 14.x ([https://nodejs.org/en/blog/release/v12.22.0/](https://nodejs.org/en/download/))
+-   Node 14.x ([https://nodejs.org/en/blog/release/v14.15.1/](https://nodejs.org/en/download/))
 -   GIT ([https://git-scm.com/download](https://git-scm.com/download))
 -   Java 11
 -   Yarn
--   Gradle 6 ([https://gradle.org/releases/](https://gradle.org/releases/))
+-   Gradle 7 ([https://gradle.org/releases/](https://gradle.org/releases/))
 -   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
--   react-native-cli 2.0.1, react-native 0.68.2 (npm install -g react-native-cli)
 -   Make sure JAVA_HOME, ANDROID_SDK and GRADLE_HOME are set in the environment variables and also in PATH.
 
 ### Command
@@ -69,7 +68,6 @@ wm-reactnative build android "/path/to/src" \
 -   GIT ([https://git-scm.com/download/mac](https://git-scm.com/download/mac))
 -   Yarn
 -   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
--   react-native-cli 2.0.1, react-native 0.68.2 (npm install -g react-native-cli)
 -   Apple developer or distribution P12 certificates
 -   Provisioning profile
 -   Install wm-reactnative-cli (npm install -g @wavemaker/wm-reactnative-cli)
@@ -113,6 +111,7 @@ wm-reactnative build ios "/path/to/src" \
 ### Requirements
 - Node 14.x
 - npm 7.20.x
+- Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
 
 ### Command
 
