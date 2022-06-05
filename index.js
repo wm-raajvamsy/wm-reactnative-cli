@@ -131,6 +131,9 @@ const args = require('yargs')
             });
         },
         (args) => {
+            if (args.clean) {
+                localStorage.clear();
+            }
             runExpo(args.previewUrl, args.web, args.clean)
     })
     .help('h')
