@@ -44,6 +44,14 @@ function launchServiceProxy(previewUrl) {
         proxyReq.setHeader('origin', previewUrl);
         proxyReq.setHeader('referer', previewUrl);
     });
+    proxy.on('proxyRes', function(proxyRes, req, res, options) {
+        var cookies = proxyRes.headers['set-cookie'];
+        if (cookies) {
+            cookies = typeof cookies === 'string' ? [cookies] : cookies;
+            cookies = cookies.map(c => c.replace(/;?\sSecure/, ''));
+            proxyRes.headers['set-cookie'] = cookies;
+        }
+    });
     logger.info({
         label: loggerLabel,
         message: `Service proxy launched at ${proxyUrl} .`
