@@ -350,6 +350,9 @@ async function ejectProject(args) {
 
 function clearUnusedAssets(platform) {
     const themeFile = config.src + 'app.theme.js';
+    if (!fs.existsSync(themeFile)) {
+        return;
+    }
     let content = fs.readFileSync(themeFile, 'utf8');
 
     if (platform === 'ios') {
