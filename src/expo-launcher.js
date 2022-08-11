@@ -27,7 +27,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     const app = express();
     app.use('/rn-bundle', express.static(wmProjectDir + '/rn-bundle'));
     app.get("/*", (req, res) => {
-        res.status(301).redirect("/rn-bundlr/index.html");
+        res.status(301).redirect("/rn-bundle/index.html");
     });
     app.listen(webPreviewPort);
     http.createServer(function (req, res) {
