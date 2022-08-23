@@ -214,7 +214,7 @@ async function runExpo(previewUrl, web, clean) {
         const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
 
         await installDependencies(projectDir);
-        //updateReanimatedPlugin(projectDir);
+        updateReanimatedPlugin(projectDir);
         if (isWebPreview) {
             launchServiceProxy(projectDir, previewUrl);
         } else {
