@@ -26,8 +26,15 @@ function launchServiceProxy(projectDir, previewUrl) {
     const wmProjectDir = getWmProjectDir(projectDir);
     const app = express();
     app.use('/rn-bundle', express.static(wmProjectDir + '/rn-bundle'));
-    app.get("/*", (req, res) => {
-        res.status(301).redirect("/rn-bundle/index.html");
+    app.get("*", (req, res) => {
+        res.send(`
+        <html>
+            <head>
+                <script type="text/javascript">
+                    location.href="/rn-bundle/index.html"
+                </script>
+            </head>
+        </html>`);
     });
     app.listen(webPreviewPort);
     http.createServer(function (req, res) {
@@ -67,7 +74,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     });
     logger.info({
         label: loggerLabel,
-        message: `Service proxy launched at ${proxyUrl} .`
+        message: `Service proxy boyina launched at ${proxyUrl} .`
     });
 }
 
