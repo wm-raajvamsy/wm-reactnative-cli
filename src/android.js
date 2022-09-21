@@ -49,6 +49,7 @@ async function generateSignedApk(keyStore, storePassword, keyAlias, keyPassword,
 function updateSigningConfig(content) {
     // TODO: replace one of the buildTypes to signingConfigs.release
     if(content.search(/if \(project.hasProperty\(\'MYAPP_UPLOAD_STORE_FILE\'\)\)/gm) == -1) {
+        content = content.replace(/signingConfigs\.debug/g, 'signingConfigs.release');
         return content.replace(/signingConfigs \{/gm, `signingConfigs {
             release {
                 if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
