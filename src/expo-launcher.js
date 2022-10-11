@@ -74,7 +74,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     });
     logger.info({
         label: loggerLabel,
-        message: `Service proxy boyina launched at ${proxyUrl} .`
+        message: `Service proxy launched at ${proxyUrl} .`
     });
 }
 
@@ -207,6 +207,36 @@ function updateReanimatedPlugin(projectDir) {
     fs.writeFileSync(path, content);
 }
 
+function watchForPlatformChanges(callBack) {
+    let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
+    if (!codegen) {
+        return;
+    }
+    setTimeout(() => {
+        let doBuild = false;
+        if (fs.existsSync(`${codegen}/wavemaker-rn-runtime/dist/new-build`)) {
+            fs.unlinkSync(`${codegen}/wavemaker-rn-runtime/dist/new-build`);
+            doBuild = true;
+        }
+        if (fs.existsSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`)) {
+            fs.unlinkSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`);
+            doBuild = true;
+        }
+        if (doBuild && callBack) {
+            console.log('\n\n\n')
+            logger.info({
+                label: loggerLabel,
+                message: 'Platform Changed. Building again.'
+            });
+            callBack().then(() => {
+                watchForPlatformChanges(callBack);
+            });
+        } else {
+            watchForPlatformChanges(callBack);
+        }
+    }, 5000);
+}
+
 async function runExpo(previewUrl, web, clean) {
     const isWebPreview = !!web;
     try {
@@ -232,6 +262,7 @@ async function runExpo(previewUrl, web, clean) {
         watchProjectChanges(previewUrl, () => {
             syncProject().then(() => transpile(projectDir, previewUrl, isWebPreview));
         });
+        watchForPlatformChanges(() => transpile(projectDir, previewUrl, isWebPreview));
     } catch(e) {
         logger.error({
             label: loggerLabel,

@@ -30,6 +30,7 @@ async function findProjectId(config) {
 
 async function downloadProject(config, projectDir) {
     const start = Date.now();
+    console.log('\n\n\n');
     logger.info({
         label: loggerLabel,
         message: 'downloading the project.'
