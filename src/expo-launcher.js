@@ -171,7 +171,7 @@ async function setup(previewUrl, isWebPreview, _clean) {
     if (_clean) {
         clean(projectDir);
     } else {
-        fs.mkdirpSync(getWmProjectDir(previewUrl));
+        fs.mkdirpSync(getWmProjectDir(projectDir));
     }
     const syncProject = await setupProject(previewUrl, projectName, projectDir);
     await transpile(projectDir, previewUrl, isWebPreview);
