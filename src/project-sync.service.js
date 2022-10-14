@@ -6,7 +6,7 @@ const axios = require('axios');
 const os = require('os');
 const qs = require('qs');
 const { exec } = require('./exec');
-
+const { unZip } = require('./zip');
 //const PULL_URL = '/studio/services/projects/${projectId}/vcs/remoteChanges';
 const STORE_KEY = 'user.auth.token';
 const MAX_REQUEST_ALLOWED_TIME = 5 * 60 * 1000;
@@ -61,9 +61,7 @@ async function downloadProject(config, projectDir) {
         fw.on('close', resolve);
     });
     fs.mkdirpSync(projectDir);
-    await exec('unzip', ['-o', tempFile, '-d', projectDir], {
-        log: false
-    });
+    unZip(tempFile, projectDir);
     logger.info({
         label: loggerLabel,
         message: `downloaded the project in (${Date.now() - start} ms).`

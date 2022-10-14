@@ -3,6 +3,7 @@ const logger = require('./logger');
 const plist = require('plist');
 const path = require('path');
 const android = require('./android');
+const { unZip } = require('./zip');
 let { showConfirmation, VERSIONS } = require('./requirements');
 
 const {
@@ -177,13 +178,7 @@ async function extractRNZip(src)  {
         if (!fs.existsSync(src)) {
             fs.mkdirsSync(src);
         }
-
-        await exec('unzip', [
-            '-o',
-            zipFile,
-            '-d',
-            src
-        ]);
+        unZip(zipFile, src);
     }
     return path.resolve(src) + '/';
 }

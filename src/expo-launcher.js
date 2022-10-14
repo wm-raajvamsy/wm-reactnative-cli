@@ -146,7 +146,7 @@ async function launchExpo(projectDir, web) {
 
 function clean(path) {
     if (fs.existsSync(path)) {
-        rimraf.sync(path);
+        rimraf.sync(path, {recursive: true});
     }
     fs.mkdirSync(path, {recursive: true});
 }
