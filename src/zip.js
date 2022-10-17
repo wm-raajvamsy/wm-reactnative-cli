@@ -1,8 +1,8 @@
-const os = require('os');
+const { isWindowsOS } = require('./utils');
 const { exec } = require('./exec');
 
 async function unzip(src, dest) {
-    if (os.platform() === "win32" || os.platform() === "win64") {
+    if ( isWindowsOS ) {
         await exec('powershell', [
             '-command', 
             "& {&'Expand-Archive' " + src + " -DestinationPath " + dest + " -Force }"], {

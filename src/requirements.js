@@ -107,7 +107,7 @@ async function checkForAndroidStudioAvailability() {
 async function hasValidJavaVersion() {
     const javaVersion = (await exec('java', ['-version'])).join('').match(/[0-9\.]+/)[0];
 
-    if (semver.lt(javaVersion, VERSIONS.JAVA)) {
+    if (semver.lt(semver.coerce(javaVersion).version, VERSIONS.JAVA)) {
         logger.error('Minimum java version required is' + VERSIONS.JAVA + '. Please update the java version.');
         return false;
     }
