@@ -22,6 +22,7 @@ const {
  const config = require('./config');
  const { invokeiosBuild } = require('./ios');
 const { resolve } = require('path');
+const { isWindowsOS } = require('./utils');
 const loggerLabel = 'wm-reactnative-cli';
 
 function getFileSize(path) {
@@ -164,7 +165,7 @@ function updateAppJsonFile(src) {
 }
 
 async function extractRNZip(src)  {
-    let folderName = src.split('/').pop();
+    let folderName = isWindowsOS ? src.split('\\').pop() : src.split('/').pop();
     const isZipFile = folderName.endsWith('.zip');
 
     folderName = isZipFile ? folderName.replace('.zip', '') : folderName;
