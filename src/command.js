@@ -193,7 +193,7 @@ async function setupBuildDirectory(src, dest, platform) {
             if (response !== 'y' && response !== 'yes') {
                 logger.error({
                     label: loggerLabel,
-                    message: 'source and destination folders are same. Please choose a different destination.'
+                    message: 'Non empty folder cannot be used as desination. Please choose a different destination and build again.'
                 });
                 return;
             }
