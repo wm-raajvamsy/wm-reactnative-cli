@@ -2,7 +2,7 @@ const { isWindowsOS } = require('./utils');
 const { exec } = require('./exec');
 
 async function unzip(src, dest) {
-    if ( isWindowsOS ) {
+    if ( isWindowsOS() ) {
         await exec('powershell', [
             '-command', 
             "& {&'Expand-Archive' " + src + " -DestinationPath " + dest + " -Force }"], {

@@ -165,7 +165,7 @@ function updateAppJsonFile(src) {
 }
 
 async function extractRNZip(src)  {
-    let folderName = isWindowsOS ? src.split('\\').pop() : src.split('/').pop();
+    let folderName = isWindowsOS() ? src.split('\\').pop() : src.split('/').pop();
     const isZipFile = folderName.endsWith('.zip');
 
     folderName = isZipFile ? folderName.replace('.zip', '') : folderName;
