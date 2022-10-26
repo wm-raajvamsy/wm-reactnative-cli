@@ -113,7 +113,7 @@ async function transpile(projectDir, previewUrl, isWebPreview) {
     const config = require(configJSONFile);
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
-    } else if (config.serverPath === '{{DEVELOPMENT_URL}}') {
+    } else {
         config.serverPath = previewUrl;
     }
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
