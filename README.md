@@ -23,6 +23,26 @@ npm install -g @wavemaker/wm-reactnative-cli
 -   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
 -   Make sure JAVA_HOME, ANDROID_SDK and GRADLE_HOME are set in the environment variables and also in PATH.
 
+### Adding Environment Variables
+
+#### For Windows
+
+-   Go to System Setting and Select Environment Varialbes
+-   ![Windows System settings](./assets/EnvironmentVariable.png)
+-   Add a New Variable under System section
+-   ![New System Variable](./assets/EnvironmentVariable1.png)
+
+#### For Linux/IOS
+
+-   use nano ~/.bashrc then add the following at the end of the file (after updating respective paths) and save it.
+~~~
+export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
+export ANDROID_HOME="/usr/lib/android-sdk"
+export ANDROID_SDK="/usr/lib/android-sdk"
+export ANDROID_SDK_ROOT="/usr/lib/android-sdk"
+export GRADLE_HOME="$HOME/gradle/gradle-7.5.1"
+~~~
+
 ### Command
 
 wm-reactnative build android <src_dir> [additional_arguments]
