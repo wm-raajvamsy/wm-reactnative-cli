@@ -33,7 +33,7 @@ npm install -g @wavemaker/wm-reactnative-cli
 -   Select New Variable under System section and add variables and their respective paths.
     ![New System Variable](./assets/EnvironmentVariable1.png)
 
-#### For Linux/IOS
+#### For Linux/MAC
 
 -   use nano ~/.bashrc then add the following at the end of the file (after updating the paths) and save it.
 ~~~
