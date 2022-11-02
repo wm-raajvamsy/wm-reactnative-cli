@@ -8,7 +8,8 @@ const {
 const {
     validateForAndroid,
     checkForAndroidStudioAvailability
- } = require('./requirements');
+} = require('./requirements');
+const { readAndReplaceFileContent } = require('./utils');
 
 const loggerLabel = 'android-build';
 
@@ -198,6 +199,60 @@ function updateSettingsGradleFile(appName) {
     }
 }
 
+async function embed(args) {
+    const rnAndroidProject = config.src;
+    await readAndReplaceFileContent(
+        `${rnAndroidProject}/android/gradle.properties`,
+        (content) => content.replace('expo.jsEngine=hermes', 'expo.jsEngine=jsc'));
+    await readAndReplaceFileContent(
+        `${rnAndroidProject}/android/settings.gradle`,
+        (content) => content.replace(`include ':app'`, `include ':app'\ninclude ':embedApp'`));
+    await readAndReplaceFileContent(
+        `${rnAndroidProject}/android/app/src/main/AndroidManifest.xml`,
+        (markup) => markup.replace(
+            /<intent-filter>(.|\n)*?android:name="android.intent.category.LAUNCHER"(.|\n)*?<\/intent-filter>/g,
+        '<!-- Removed React Native Main activity as launcher. Check the embedApp with Launcher activity -->')
+        .replace(' android:theme="@style/AppTheme"', ''));
+    await readAndReplaceFileContent(
+        `${rnAndroidProject}/android/app/build.gradle`,
+        (content) => {
+            return content.replace(
+                `apply plugin: "com.android.application"`,
+                `apply plugin: "com.android.library"`)
+                .replace(/\s*applicationId.*/, '')
+                .replace(`"/scripts/compose-source-maps.js",`,
+                    `"/scripts/compose-source-maps.js",\n\tenableVmCleanup: false`)
+                .replace('applicationVariants.all { variant', '/*applicationVariants.all { variant')
+                .replace(
+                    /(versionCodes.get\(abi\)\s\*\s1048576\s\+\sdefaultConfig\.versionCode[\s|\n]*\}[\s|\n]*\}[\s|\n]*\})/,
+                    '$1*/'
+                );
+        });
+    fs.mkdirpSync(`${config.src}/android/app/src/main/assets`);
+    await exec('npx', ['react-native', 'bundle', '--platform',  'android',
+            '--dev', 'false', '--entry-file', 'index.js',
+            '--bundle-output', 'android/app/src/main/assets/index.android.bundle',
+            '--assets-dest', 'android/app/src/main/res/'], {
+        cwd: config.src
+    });
+    logger.info({
+        label: loggerLabel,
+        message: 'Changed React Native project.'
+    });
+    await modifyRnAndroidFiles();
+    fs.copySync(args.modulePath, `${config.src}/android/embedApp`);
+    await readAndReplaceFileContent(`${config.src}/android/embedApp/build.gradle`, 
+        // TODO: This is a workaround to get build passed. Need to find appropriate fix.
+        content => content.replace(/android[\s]{/, 'project.ext.react = []\nandroid {')
+            // fix for issue at https://github.com/facebook/react-native/issues/33926
+            .replace(/(com\.google\.android\.material:material:([\d\.]*))/, 'com.google.android.material:material:1.6.0')
+            .replace('testImplementation', 'implementation project(path: \':app\')\n\ttestImplementation'));
+    logger.info({
+        label: loggerLabel,
+        message: 'Changed Native Android project.'
+    });
+}
+
 async function invokeAndroidBuild(args) {
     let keyStore, storePassword, keyAlias,keyPassword;
 
@@ -276,5 +331,6 @@ async function invokeAndroidBuild(args) {
 
 module.exports = {
     generateSignedApk: generateSignedApk,
-    invokeAndroidBuild: invokeAndroidBuild
+    invokeAndroidBuild: invokeAndroidBuild,
+    embed: embed
 }

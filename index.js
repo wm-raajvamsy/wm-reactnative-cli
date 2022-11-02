@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const {
-    ejectProject, build
+    ejectProject, build, embed
 } = require('./src/command');
 const os = require('os');
 const { LocalStorage } = require('node-localstorage');
@@ -116,7 +116,48 @@ const args = require('yargs')
                 type: 'boolean'
             })
     })
-    .command('run expo <previewUrl>',
+    .command('eject expo [src] [dest]',
+        'Removes Expo and generate pure react native project.',
+        yargs => {
+            yargs.positional('src', {
+                describe: 'path of React Native project',
+                default: './',
+                type: 'string',
+                normalize: true
+            })
+            .option('dest', {
+                alias: 'dest',
+                describe: 'dest folder where the react native project will be extracted to',
+                type: 'string'
+            })
+        },
+        (args) => {
+            ejectProject(args);
+    }).command('embed android [src]',
+        'Removes Expo and generate pure react native project.',
+        yargs => {
+            yargs.positional('src', {
+                describe: 'path of React Native project',
+                default: './',
+                type: 'string',
+                normalize: true
+            })
+            .option('dest', {
+                alias: 'dest',
+                describe: 'dest folder where the react native project will be extracted to',
+                type: 'string'
+            })
+            .option('modulePath', {
+                alias: 'mp',
+                describe: 'path to the app module that needs to be embedded.',
+                type: 'string',
+                requiresArg: true
+            })
+        },
+        (args) => {
+            args.platform = 'android';
+            return embed(args);
+    }).command('run expo <previewUrl>',
         'launch local expo with a wavemaker project as source',
         yargs => {
             yargs.option('web', {

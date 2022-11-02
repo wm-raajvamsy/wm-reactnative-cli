@@ -110,6 +110,10 @@ function updateAppJsonFile(src) {
         return response;
     }
 
+    if (args.ejectProject)  {
+        return;
+    }
+
     if (args.dest) {
         config.src = args.dest;
     }
@@ -390,6 +394,17 @@ function clearUnusedAssets(platform) {
 }
 
 module.exports = {
-    ejectProject: ejectProject,
+    ejectProject: (args) => {
+        args.autoEject = true;
+        args.platform = 'expo';
+        build(args);
+    },
+    embed: async (args) => {
+        args.autoEject = true;
+        args.platform = 'android';
+        args.ejectProject = true;
+        await build(args);
+        await android.embed(args);
+    },
     build: build
 }
