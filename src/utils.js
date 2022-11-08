@@ -18,7 +18,16 @@ async function readAndReplaceFileContent(path, writeFn) {
     });
 }
 
+async function iterateFiles(path, callBack) {
+    if (fs.lstatSync(path).isDirectory()) {
+        await Promise.all(fs.readdirSync(path).map((p) => iterateFiles(`${path}/${p}`, callBack)));
+    } else {
+        await callBack && callBack(path);
+    }
+}
+
 module.exports = {
     isWindowsOS: isWindowsOS,
-    readAndReplaceFileContent: readAndReplaceFileContent
-}
+    readAndReplaceFileContent: readAndReplaceFileContent,
+    iterateFiles: iterateFiles
+};

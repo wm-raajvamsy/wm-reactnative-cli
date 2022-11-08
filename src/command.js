@@ -405,6 +405,10 @@ module.exports = {
         args.ejectProject = true;
         await build(args);
         await android.embed(args);
+        logger.info({
+            label: loggerLabel,
+            message: `Build Success. Check the embedded project at : ${args.dest}/android.`
+        });
     },
     build: build
 }
