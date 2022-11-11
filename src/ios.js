@@ -11,6 +11,7 @@ const {
     isCocoaPodsIstalled,
     validateForIos
  } = require('./requirements');
+ const { readAndReplaceFileContent } = require('./utils');
 
  const loggerLabel = 'Generating ipa file';
 
@@ -138,8 +139,24 @@ async function invokeiosBuild(args) {
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
 
         try {
+            // XCode14 issue https://github.com/expo/expo/issues/19759
+            // This is not required when expo 47 is used.
+            await readAndReplaceFileContent(`${config.src}ios/Podfile`, (content) => {
+                return content.replace('__apply_Xcode_12_5_M1_post_install_workaround(installer)', 
+                '__apply_Xcode_12_5_M1_post_install_workaround(installer)' + '\n' +
+                '    # Add these lines for Xcode 14 builds' + '\n' +
+                '    installer.pods_project.targets.each do |target| ' +   '\n' +
+                '       if target.respond_to?(:product_type) and target.product_type == "com.apple.product-type.bundle"' + '\n' +
+                '           target.build_configurations.each do |config|'+ '\n' +
+                '               config.build_settings[\'CODE_SIGNING_ALLOWED\'] = \'NO\'' + '\n' +
+                '           end' + '\n' +
+                '       end' + '\n' +
+                '   end')
+            });
+            await exec('pod', ['install'], {cwd: config.src + 'ios'});
             return await xcodebuild(args, codeSignIdentity, provisionuuid, developmentTeamId);
         } catch (e) {
+            console.error(e);
             return {
                 errors: e,
                 success: false
