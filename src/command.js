@@ -20,7 +20,7 @@ const {
  } = require('./requirements');
 
  const config = require('./config');
- const { invokeiosBuild } = require('./ios');
+ const ios = require('./ios');
 const { resolve } = require('path');
 const { isWindowsOS } = require('./utils');
 const loggerLabel = 'wm-reactnative-cli';
@@ -133,7 +133,7 @@ function updateAppJsonFile(src) {
             await exec('pod', ['install'], {
                 cwd: config.src + 'ios'
             });
-            result = await invokeiosBuild(args);
+            result = await ios.invokeiosBuild(args);
         }
         if (result.errors && result.errors.length) {
             logger.error({
@@ -401,14 +401,21 @@ module.exports = {
     },
     embed: async (args) => {
         args.autoEject = true;
-        args.platform = 'android';
         args.ejectProject = true;
         await build(args);
-        await android.embed(args);
-        logger.info({
-            label: loggerLabel,
-            message: `Build Success. Check the embedded project at : ${args.dest}/android.`
-        });
+        if (args.platform === 'android') {
+            await android.embed(args);
+            logger.info({
+                label: loggerLabel,
+                message: `Build Success. Check the embedded project at : ${args.dest}android.`
+            });
+        } else if (args.platform === 'ios') {
+            await ios.embed(args);
+            logger.info({
+                label: loggerLabel,
+                message: `Build Success. Check the embedded project at : ${args.dest}ios.`
+            });
+        }
     },
     build: build
 }

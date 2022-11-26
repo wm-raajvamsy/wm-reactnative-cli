@@ -2,6 +2,7 @@ const fs = require('fs-extra');
 const logger = require('./logger');
 const config = require('./config');
 const plist = require('plist');
+const xcode = require('xcode');
 const {
     exec
 } = require('./exec');
@@ -11,7 +12,7 @@ const {
     isCocoaPodsIstalled,
     validateForIos
  } = require('./requirements');
- const { readAndReplaceFileContent } = require('./utils');
+ const { readAndReplaceFileContent, iterateFiles } = require('./utils');
 
  const loggerLabel = 'Generating ipa file';
 
@@ -88,6 +89,100 @@ function updateJSEnginePreference() {
             message: `js engine is set as ${jsEngine}`
         });
     }
+}
+
+function addResourceFileToProject(iosProject, path, opt, group) {
+    const file = iosProject.addFile(path, group);
+    file.uuid = iosProject.generateUuid();
+    iosProject.addToPbxBuildFileSection(file);        // PBXBuildFile
+    iosProject.addToPbxResourcesBuildPhase(file);     // PBXResourcesBuildPhase
+    iosProject.addToPbxFileReferenceSection(file);    // PBXFileReference
+    if (group) {
+        if (iosProject.getPBXGroupByKey(group)) {
+            iosProject.addToPbxGroup(file, group);        //Group other than Resources (i.e. 'splash')
+        }
+        else if (iosProject.getPBXVariantGroupByKey(group)) {
+            iosProject.addToPbxVariantGroup(file, group);  // PBXVariantGroup
+        }
+    }
+    return file;
+}
+
+async function updateIosProject(args) {
+    const rnIosProject = config.src;
+    const files = fs.readdirSync(`${rnIosProject}ios`);
+    const projectName = files.find(f => f.endsWith('xcodeproj')).split('.')[0];
+    const iosProject = xcode.project(`${rnIosProject}ios/${projectName}.xcodeproj/project.pbxproj`);
+    return new Promise((resolve, reject) => {
+        iosProject.parse((err) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            const projectGroup = iosProject.findPBXGroupKeyAndType({path: projectName}, 'PBXGroup');
+            iosProject.addHeaderFile(`${projectName}-Bridging-Header.h`, null, projectGroup);
+            iosProject.addHeaderFile(`ReactNativeView.h`, null, projectGroup);
+            const sourceGroups = iosProject.hash.project.objects.PBXSourcesBuildPhase;
+            const sourcesGroup = sourceGroups[Object.keys(sourceGroups).find(k => sourceGroups[k] === 'Sources').split('_comment')[0]];
+            const rnViewMFile = iosProject.addSourceFile(`ReactNativeView.m`, null, projectGroup);
+            const rnSwiftFile = iosProject.addSourceFile(`ReactNativeAppView.swift`, null, projectGroup);
+            iosProject.addBuildProperty('SWIFT_OBJC_BRIDGING_HEADER', '"DABank/DABank-Bridging-Header.h"');
+            addResourceFileToProject(iosProject, '../assets', null, projectGroup);
+            addResourceFileToProject(iosProject, '../main.jsbundle', null, projectGroup);
+            iosProject.addBuildPhase([], 'PBXShellScriptBuildPhase', 'Bundle React Native Code and Images', null, {
+                shellPath: '"/bin/sh"',
+                shellScript: 
+                "export NODE_BINARY=node\n" +
+                "# The project root by default is one level up from the ios directory\n" +
+                "export PROJECT_ROOT=\"$PROJECT_DIR\"/..\n" +
+                "sh ../node_modules/react-native/scripts/react-native-xcode.sh\n"
+            })
+            const mProjectFile = iosProject.writeSync();
+            fs.writeFileSync(`${rnIosProject}ios/${projectName}.xcodeproj/project.pbxproj`, mProjectFile); 
+            resolve();
+        });
+    });
+}
+
+async function embed(args) {
+    const rnIosProject = config.src;
+    fs.moveSync(`${rnIosProject}ios`, `${rnIosProject}ios_rn`);
+    fs.copySync(args.mp, `${rnIosProject}ios`);
+    const files = fs.readdirSync(`${rnIosProject}ios`);
+    const projectName = files.find(f => f.endsWith('xcodeproj')).split('.')[0];
+    const projectDir = `${rnIosProject}ios/${projectName}`;
+    fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeAppView.swift`, `${projectDir}/ReactNativeAppView.swift`);
+    fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.h`, `${projectDir}/ReactNativeView.h`);
+    fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.m`, `${projectDir}/ReactNativeView.m`);
+    fs.moveSync(`${rnIosProject}ios/Podfile`, `${rnIosProject}ios/Podfile.old`);
+    fs.moveSync(`${rnIosProject}ios/Podfile.embed`, `${rnIosProject}ios/Podfile`);
+    await exec('pod', ['install'], {
+        cwd: `${rnIosProject}/ios`
+    });
+    await readAndReplaceFileContent(
+        `${rnIosProject}/app.js`,
+        (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));
+    await exec('npx', ['react-native', 'bundle', '--platform',  'ios',
+            '--dev', 'false', '--entry-file', 'index.js',
+            '--bundle-output', 'ios/main.jsbundle',
+            '--assets-dest', 'ios'], {
+        cwd: config.src
+    });
+    await iterateFiles(projectDir, async (p) => {
+        if (/\.swift?|\.h?|\.m?|\.Bridging-Header/.test(p)) {
+            await readAndReplaceFileContent(p, (content) => {
+                return content
+                    .replace(/[^\n]*<ADD_IN_REACT_NATIVE_EMBED_PROJECT>[^\n]*/g, '')
+                    .replace(/[^\n]*<\/ADD_IN_REACT_NATIVE_EMBED_PROJECT>[^\n]*/g, '')
+                    .replace(/[^\n]*<REMOVE_IN_REACT_NATIVE_EMBED_PROJECT>(.|\n|\t|\r)*?<\/REMOVE_IN_REACT_NATIVE_EMBED_PROJECT>[^\n]*/g, '');
+            })
+        }
+    });
+    await updateIosProject(args);
+    logger.info({
+        label: loggerLabel,
+        message: 'Changed Native Ios project.'
+    });
 }
 
 async function invokeiosBuild(args) {
@@ -283,5 +378,6 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
 }
 
 module.exports = {
-    invokeiosBuild: invokeiosBuild
+    invokeiosBuild: invokeiosBuild,
+    embed: embed
 }

@@ -133,10 +133,21 @@ const args = require('yargs')
         },
         (args) => {
             ejectProject(args);
-    }).command('embed android [src]',
-        'Removes Expo and generate pure react native project.',
+    }).command('embed', '',
         yargs => {
-            yargs.positional('src', {
+            yargs.command('android [src]',
+                'Embed React Native project with Native Android project',
+                yargs => {},
+                (args) => {
+                args.platform = 'android';
+                return embed(args);
+            }).command('ios [src]',
+                'Embed React Native project with Native iOS project.',
+                yargs => {},
+                (args) => {
+                args.platform = 'ios';
+                return embed(args);
+            }).positional('src', {
                 describe: 'path of React Native project',
                 default: './',
                 type: 'string',
@@ -152,12 +163,9 @@ const args = require('yargs')
                 describe: 'path to the app module that needs to be embedded.',
                 type: 'string',
                 requiresArg: true
-            })
-        },
-        (args) => {
-            args.platform = 'android';
-            return embed(args);
-    }).command('run expo <previewUrl>',
+            });
+        }
+    ).command('run expo <previewUrl>',
         'launch local expo with a wavemaker project as source',
         yargs => {
             yargs.option('web', {

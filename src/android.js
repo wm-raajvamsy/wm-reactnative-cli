@@ -229,38 +229,15 @@ async function embed(args) {
                     '$1*/'
                 );
         });
-    await readAndReplaceFileContent(
-        `${rnAndroidProject}/app.js`,
-        (content) => {
-            const i = content.indexOf('export default (props) => {');
-            if (i < 0) {
-                content = content.replace('export default () => {', '/*export default (props) => {');
-                content += `
-                */
-                export default (props) => {
-                    const [visible, setVisible] = useState(true);
-                    _reloadApp = useCallback(() => {
-                    setVisible(false);
-                    setTimeout(() => {
-                        setVisible(true);
-                    }, 100);
-                    }, [visible]);
-                    return visible ? <App {...props}/> : null;
-                };`;
-                fs.copySync(
-                    `${__dirname}/../templates/wm-rn-runtime/App.js`, 
-                    `${config.src}/node_modules/@wavemaker/app-rn-runtime/runtime/App.js`);
-                fs.copySync(
-                    `${__dirname}/../templates/wm-rn-runtime/App.navigator.js`, 
-                    `${config.src}/node_modules/@wavemaker/app-rn-runtime/runtime/App.navigator.js`);
-                fs.mkdirpSync(`${config.src}/android/app/src/main/assets`);
-            }
-            return content;
-        });
 
     fs.copySync(
         `${__dirname}/../templates/embed/android/SplashScreenReactActivityLifecycleListener.kt`,
         `${config.src}/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/SplashScreenReactActivityLifecycleListener.kt`);
+    await readAndReplaceFileContent(
+        `${rnAndroidProject}/app.js`,
+        (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));
+    
+    fs.mkdirpSync(`${config.src}/android/app/src/main/assets`);
     await exec('npx', ['react-native', 'bundle', '--platform',  'android',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'android/app/src/main/assets/index.android.bundle',
