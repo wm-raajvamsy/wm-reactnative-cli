@@ -1,4 +1,5 @@
 const fs = require('fs-extra');
+const propertiesReader = require('properties-reader');
 const logger = require('./logger');
 const config = require('./config');
 const {
@@ -9,7 +10,7 @@ const {
     validateForAndroid,
     checkForAndroidStudioAvailability
 } = require('./requirements');
-const { readAndReplaceFileContent, iterateFiles } = require('./utils');
+const { readAndReplaceFileContent } = require('./utils');
 
 const loggerLabel = 'android-build';
 
@@ -200,21 +201,75 @@ function updateSettingsGradleFile(appName) {
 }
 
 async function embed(args) {
-    const rnAndroidProject = config.src;
+    const rnAndroidProject = `${config.src}/android`;
+    const embedAndroidProject = `${config.src}/android-embed`;
+    fs.mkdirpSync(embedAndroidProject);
+    logger.info({
+        label: loggerLabel,
+        message: 'copying Native Android project.'
+    });
+    fs.copySync(args.modulePath, embedAndroidProject);
+    fs.copySync(
+        `${__dirname}/../templates/embed/android/fragment_react_native_app.xml`,
+        `${embedAndroidProject}/rnApp/src/main/res/layout/fragment_react_native_app.xml`);
+    fs.copySync(
+        `${__dirname}/../templates/embed/android/ReactNativeAppFragment.java`,
+        `${embedAndroidProject}/app/src/main/java/com/wavemaker/reactnative/ReactNativeAppFragment.java`);
     await readAndReplaceFileContent(
-        `${rnAndroidProject}/android/gradle.properties`,
-        (content) => content.replace('expo.jsEngine=hermes', 'expo.jsEngine=jsc'));
+        `${embedAndroidProject}/app/src/main/java/com/wavemaker/reactnative/ReactNativeAppFragment.java`, 
+        content => content.replace(/\$\{packageName\}/g, config.metaData.id));
+    logger.info({
+        label: loggerLabel,
+        message: 'transforming Native Android files.'
+    });
+    await readAndReplaceFileContent(`${embedAndroidProject}/app/build.gradle`, 
+        // TODO: This is a workaround to get build passed. Need to find appropriate fix.
+        content => content.replace(/android[\s]{/, 'project.ext.react = []\nandroid {'));
+            // fix for issue at https://github.com/facebook/react-native/issues/33926
+            //.replace(/(com\.google\.android\.material:material:([\d\.]*))/, 'com.google.android.material:material:1.6.0'));
+    logger.info({
+        label: loggerLabel,
+        message: 'Changed Native Android project.'
+    });
+    fs.copySync(`${rnAndroidProject}/app`, `${embedAndroidProject}/rnApp`);
+    fs.copySync(`${rnAndroidProject}/build.gradle`, `${embedAndroidProject}/rnApp/root.build.gradle`);
+    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.build.gradle`, (content) => {
+        return content + `\nallprojects {
+            configurations.all {
+                resolutionStrategy {
+                    force "com.facebook.react:react-native:" + REACT_NATIVE_VERSION
+                    force "androidx.annotation:annotation:1.4.0"
+                }
+            }
+        }`;
+    });
+    fs.copySync(`${rnAndroidProject}/settings.gradle`, `${embedAndroidProject}/rnApp/root.settings.gradle`);
+    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.settings.gradle`, (content) => {
+        return content.replace('rootProject.name', '//rootProject.name');
+    });
+    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.settings.gradle`, (content) => {
+        return content.replace(`':app'`, `':rnApp'`);
+    });
     await readAndReplaceFileContent(
-        `${rnAndroidProject}/android/settings.gradle`,
-        (content) => content.replace(`include ':app'`, `include ':app'\ninclude ':embedApp'`));
+        `${embedAndroidProject}/gradle.properties`,
+        (content) => {
+            const nativeProperties = propertiesReader(`${embedAndroidProject}/gradle.properties`);
+            const rnProperties = propertiesReader(`${rnAndroidProject}/gradle.properties`);
+            content += (Object.keys(rnProperties.getAllProperties())
+            .filter(k => (nativeProperties.get(k) === null))
+            .map(k => `\n${k}=${rnProperties.get(k)}`)).join('') || '';
+            return content.replace('android.nonTransitiveRClass=true', 'android.nonTransitiveRClass=false')
+                .replace('expo.jsEngine=hermes', 'expo.jsEngine=jsc');
+        });
     await readAndReplaceFileContent(
-        `${rnAndroidProject}/android/app/src/main/AndroidManifest.xml`,
+        `${embedAndroidProject}/rnApp/src/main/AndroidManifest.xml`,
         (markup) => markup.replace(
             /<intent-filter>(.|\n)*?android:name="android.intent.category.LAUNCHER"(.|\n)*?<\/intent-filter>/g,
         '<!-- Removed React Native Main activity as launcher. Check the embedApp with Launcher activity -->')
-        .replace(' android:theme="@style/AppTheme"', ''));
+        .replace(' android:theme="@style/AppTheme"', '')
+        .replace('android:name=".MainApplication"', ''));
     await readAndReplaceFileContent(
-        `${rnAndroidProject}/android/app/build.gradle`,
+        `${embedAndroidProject}/rnApp/build.gradle`,
         (content) => {
             return content.replace(
                 `apply plugin: "com.android.application"`,
@@ -234,49 +289,21 @@ async function embed(args) {
         `${__dirname}/../templates/embed/android/SplashScreenReactActivityLifecycleListener.kt`,
         `${config.src}/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/SplashScreenReactActivityLifecycleListener.kt`);
     await readAndReplaceFileContent(
-        `${rnAndroidProject}/app.js`,
-        (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));
-    
-    fs.mkdirpSync(`${config.src}/android/app/src/main/assets`);
+        `${args.dest}/app.js`,
+        (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));    
+    fs.mkdirpSync(`${config.src}/android-embed/rnApp/src/main/assets`);
+    await readAndReplaceFileContent(
+        `${args.dest}/node_modules/@wavemaker/app-rn-runtime/components/dialogs/dialogcontent/dialogcontent.component.js`,
+        (content) => content.replace('height', 'maxHeight'));    
     await exec('npx', ['react-native', 'bundle', '--platform',  'android',
             '--dev', 'false', '--entry-file', 'index.js',
-            '--bundle-output', 'android/app/src/main/assets/index.android.bundle',
-            '--assets-dest', 'android/app/src/main/res/'], {
+            '--bundle-output', 'android-embed/rnApp/src/main/assets/index.android.bundle',
+            '--assets-dest', 'android-embed/rnApp/src/main/res/'], {
         cwd: config.src
     });
     logger.info({
         label: loggerLabel,
         message: 'Changed React Native project.'
-    });
-    fs.copySync(args.modulePath, `${config.src}/android/embedApp`);
-    fs.copySync(
-        `${__dirname}/../templates/embed/android/fragment_react_native_app.xml`,
-        `${config.src}/android/app/src/main/res/layout/fragment_react_native_app.xml`);
-    fs.copySync(
-        `${__dirname}/../templates/embed/android/ReactNativeAppFragment.java`,
-        `${config.src}/android/embedApp/src/main/java/com/wavemaker/reactnative/ReactNativeAppFragment.java`);
-    await readAndReplaceFileContent(
-        `${config.src}/android/embedApp/src/main/java/com/wavemaker/reactnative/ReactNativeAppFragment.java`, 
-        content => content.replace(/\$\{packageName\}/g, config.metaData.id));
-    await iterateFiles(`${config.src}/android/embedApp`, async (p) => {
-        if (/java?|xml?/.test(p)) {
-            await readAndReplaceFileContent(p, (content) => {
-                return content
-                    .replace(/[^\n]*<ADD_IN_REACT_NATIVE_EMBED_PROJECT>[^\n]*/g, '')
-                    .replace(/[^\n]*<\/ADD_IN_REACT_NATIVE_EMBED_PROJECT>[^\n]*/g, '')
-                    .replace(/[^\n]*<REMOVE_IN_REACT_NATIVE_EMBED_PROJECT>(.|\n|\t|\r)*?<\/REMOVE_IN_REACT_NATIVE_EMBED_PROJECT>[^\n]*/g, '');
-            })
-        }
-    });
-    await readAndReplaceFileContent(`${config.src}/android/embedApp/build.gradle`, 
-        // TODO: This is a workaround to get build passed. Need to find appropriate fix.
-        content => content.replace(/android[\s]{/, 'project.ext.react = []\nandroid {')
-            // fix for issue at https://github.com/facebook/react-native/issues/33926
-            .replace(/(com\.google\.android\.material:material:([\d\.]*))/, 'com.google.android.material:material:1.6.0')
-            .replace('testImplementation', 'implementation project(path: \':app\')\n\ttestImplementation'));
-    logger.info({
-        label: loggerLabel,
-        message: 'Changed Native Android project.'
     });
 }
 

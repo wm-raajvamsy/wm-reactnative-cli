@@ -407,7 +407,7 @@ module.exports = {
             await android.embed(args);
             logger.info({
                 label: loggerLabel,
-                message: `Build Success. Check the embedded project at : ${args.dest}android.`
+                message: `Build Success. Check the embedded project at : ${args.dest}android-embed.`
             });
         } else if (args.platform === 'ios') {
             await ios.embed(args);

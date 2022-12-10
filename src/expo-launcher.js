@@ -135,11 +135,11 @@ async function installDependencies(projectDir) {
 
 async function launchExpo(projectDir, web) {
     //openTerminal(`cd ${getExpoProjectDir(projectDir)}; expo start --web`);
-    const args = ['start'];
+    const args = ['expo', 'start', ];
     if (web) {
         args.push('--web');
     }
-    await exec('expo', args, {
+    await exec('npx', args, {
         cwd: getExpoProjectDir(projectDir)
     });
 }
@@ -240,14 +240,6 @@ function watchForPlatformChanges(callBack) {
 async function runExpo(previewUrl, web, clean) {
     const isWebPreview = !!web;
     try {
-        const hasExpo = await hasValidExpoVersion();
-        if (!hasExpo) {
-            logger.debug({
-                label: loggerLabel,
-                message: 'Installing expo-cli@'  + VERSIONS.EXPO
-            });
-            await installGlobalNpmPackage('expo-cli@' + VERSIONS.EXPO);
-        }
         const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
 
         await installDependencies(projectDir);
