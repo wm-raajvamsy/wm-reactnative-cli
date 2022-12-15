@@ -302,9 +302,10 @@ async function ejectProject(args) {
         if (args.platform !== 'android') {
             VERSIONS.JAVA = '1.8.0';
         }
-
-        if (!await hasValidNodeVersion() || !await hasValidJavaVersion() || !await hasYarnPackage() ||
-            !await checkForGradleAvailability() || !await isGitInstalled() || !await hasValidExpoVersion()) {
+        if (!await hasValidNodeVersion() || !await hasYarnPackage()
+            || !await isGitInstalled() || !await hasValidExpoVersion()
+            || (args.platform === 'android' && !args.ejectProject
+                && (!await hasValidJavaVersion() || !await checkForGradleAvailability()))) {
             return {
                 errors: 'check if all prerequisites are installed.',
                 success: false
