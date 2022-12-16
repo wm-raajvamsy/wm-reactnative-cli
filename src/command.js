@@ -397,7 +397,8 @@ function clearUnusedAssets(platform) {
 module.exports = {
     ejectProject: (args) => {
         args.autoEject = true;
-        args.platform = 'expo';
+        args.ejectProject = true;
+        args.platform === 'expo'
         build(args);
     },
     embed: async (args) => {
@@ -414,7 +415,7 @@ module.exports = {
             await ios.embed(args);
             logger.info({
                 label: loggerLabel,
-                message: `Build Success. Check the embedded project at : ${args.dest}ios.`
+                message: `Build Success. Check the embedded project at : ${args.dest}ios-embed.`
             });
         }
     },

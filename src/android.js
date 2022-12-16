@@ -286,6 +286,13 @@ async function embed(args) {
         });
 
     fs.copySync(
+        `${__dirname}/../templates/embed/android/embed-package`,
+        `${embedAndroidProject}/rnApp/src/main/java`);
+    await readAndReplaceFileContent(
+        `${embedAndroidProject}/rnApp/src/main/java/${config.metaData.id.split('.').join('/')}/MainApplication.java`,
+        (content) => content.replace('return packages;', 'packages.add(new com.wavemaker.reactnative.EmbedPackage());\n\treturn packages;'));    
+        
+    fs.copySync(
         `${__dirname}/../templates/embed/android/SplashScreenReactActivityLifecycleListener.kt`,
         `${config.src}/node_modules/expo-splash-screen/android/src/main/java/expo/modules/splashscreen/SplashScreenReactActivityLifecycleListener.kt`);
     await readAndReplaceFileContent(
