@@ -35,6 +35,9 @@ async function updatePackageJsonFile(path) {
         let data = fs.readFileSync(path, 'utf-8');
         const jsonData = JSON.parse(data);
         jsonData['main'] = "index";
+        if (config.embed) {
+            jsonData['dependencies']['@wavemaker/expo-native-module'] = "^0.0.1";
+        }
         fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
         logger.info({
             'label': loggerLabel,
@@ -110,7 +113,7 @@ function updateAppJsonFile(src) {
         return response;
     }
 
-    if (args.ejectProject)  {
+    if (args.ejectProject || config.embed)  {
         return;
     }
 
@@ -304,7 +307,7 @@ async function ejectProject(args) {
         }
         if (!await hasValidNodeVersion() || !await hasYarnPackage()
             || !await isGitInstalled() || !await hasValidExpoVersion()
-            || (args.platform === 'android' && !args.ejectProject
+            || (args.platform === 'android' && !config.embed
                 && (!await hasValidJavaVersion() || !await checkForGradleAvailability()))) {
             return {
                 errors: 'check if all prerequisites are installed.',
@@ -403,7 +406,7 @@ module.exports = {
     },
     embed: async (args) => {
         args.autoEject = true;
-        args.ejectProject = true;
+        config.embed = true;
         await build(args);
         if (args.platform === 'android') {
             await android.embed(args);

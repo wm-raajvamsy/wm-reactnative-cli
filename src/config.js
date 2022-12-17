@@ -6,5 +6,6 @@ module.exports = {
     buildType: '',
     logDirectory: '',
     outputDirectory: '',
-    metaData: {}
+    metaData: {},
+    embed: false
 };
