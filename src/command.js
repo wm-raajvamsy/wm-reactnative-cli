@@ -36,7 +36,7 @@ async function updatePackageJsonFile(path) {
         const jsonData = JSON.parse(data);
         jsonData['main'] = "index";
         if (config.embed) {
-            jsonData['dependencies']['@wavemaker/expo-native-module'] = "^0.0.1";
+            jsonData['dependencies']['@wavemaker/expo-native-module'] = "latest";
         }
         fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
         logger.info({

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import EmbedCommModule
 
 struct ReactNativeSwiftView: UIViewRepresentable {
     var pageName = ""
@@ -34,5 +35,19 @@ struct ReactNativePageView: View {
 class ReactNativeHostingController: UIHostingController<ReactNativePageView> {
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder, rootView: ReactNativePageView(pageName: ""))
+        CommunicationService.INSTANCE.process(
+            messageType: "close",
+            processor: {(message: NSDictionary?, promise: Promise?) in
+                DispatchQueue.main.async(execute: {
+                    self.navigationController?.popViewController(animated: true);
+                    self.dismiss(animated: true);
+                });
+        });
     }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated);
+        CommunicationService.INSTANCE.removeProcessor(messageType: "close");
+    }
+    
 }
