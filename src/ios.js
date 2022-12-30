@@ -274,6 +274,9 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
                 success: false
             }
         }
+        const projectName = fs.readdirSync(`${config.src}ios`)
+            .find(f => f.endsWith('xcodeproj'))
+            .split('.')[0];
         const pathArr = xcworkspacePath.split('/');
         const xcworkspaceFileName = pathArr[pathArr.length - 1];
         const fileName = xcworkspaceFileName.split('.')[0];
@@ -281,6 +284,15 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         let _buildType;
         if (args.buildType === 'development' || args.buildType === 'debug') {
             _buildType = 'Debug';
+            // Instead of loading from metro server, load it from the bundle.
+            await readAndReplaceFileContent(`${config.src}ios/${projectName}.xcodeproj/project.pbxproj`, (content) => {
+                return content.replace('SKIP_BUNDLING=1', 'FORCE_BUNDLING=1')
+            });
+            await readAndReplaceFileContent(`${config.src}ios/${projectName}/AppDelegate.mm`, (content) => {
+                return content.replace(
+                    'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
+                    'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
+            });
         } else {
             _buildType = 'Release';
         }
@@ -322,6 +334,11 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
             }
         }
     } catch (e) {
+        logger.error({
+            label: loggerLabel,
+            message: e
+        });
+        console.error(e);
         return {
             errors: e,
             success: false
