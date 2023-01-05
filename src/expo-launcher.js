@@ -119,7 +119,7 @@ async function transpile(projectDir, previewUrl, isWebPreview) {
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
     await exec('node',
-        [codegen, 'transpile', '--profile="' + profile + '"',
+        [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     logger.info({
         label: loggerLabel,
