@@ -266,8 +266,10 @@ async function readWmRNConfig(src) {
     src = path.resolve(src) + '/';
     let jsonPath = src + 'wm_rn_config.json';
     let data = await fs.readFileSync(jsonPath);
+    data = JSON.parse(data);
+    data.preferences = data.preferences || {};
     data.preferences.enableHermes = true;
-    return JSON.parse(data);
+    return data;
 }
 
 async function writeWmRNConfig(content) {
