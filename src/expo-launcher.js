@@ -5,6 +5,7 @@ const http = require('http');
 const request = require('request');
 const os = require('os');
 const rimraf = require("rimraf");
+const open = require('open');
 const httpProxy = require('http-proxy');
 const {
     exec
@@ -78,6 +79,25 @@ function launchServiceProxy(projectDir, previewUrl) {
     });
 }
 
+function launchToolServer() {
+    const app = express();
+    const port = 19002;
+    const url = `exp://${getIpAddress()}:19000/`;
+    app.use(express.static(__dirname + '/../tools-site'));
+    app.get("/", (req, res) => {
+        const template = fs.readFileSync(__dirname+ '/../tools-site/index.html.template', {
+            encoding: "utf-8"
+        });
+        res.send(template.replace(/\{\{url\}\}/g, url));
+    });
+    app.listen(port);
+    logger.info({
+        label: loggerLabel,
+        message: `open http://localhost:${port}/ in browser.`
+    });
+    open(`http://localhost:${port}/`);
+}
+
 function getIpAddress() {
     var interfaces = os.networkInterfaces();
     for(var key in interfaces) {
@@ -138,6 +158,8 @@ async function launchExpo(projectDir, web) {
     const args = ['expo', 'start', ];
     if (web) {
         args.push('--web');
+    } else {
+        launchToolServer();
     }
     await exec('npx', args, {
         cwd: getExpoProjectDir(projectDir)
