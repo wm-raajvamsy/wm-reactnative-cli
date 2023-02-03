@@ -22,7 +22,7 @@ const {
  const config = require('./config');
  const ios = require('./ios');
 const { resolve } = require('path');
-const { isWindowsOS } = require('./utils');
+const { isWindowsOS, readAndReplaceFileContent } = require('./utils');
 const loggerLabel = 'wm-reactnative-cli';
 
 function getFileSize(path) {
@@ -129,7 +129,7 @@ function updateAppJsonFile(src) {
 
     try {
         let result;
-        clearUnusedAssets(config.platform);
+        // await clearUnusedAssets(config.platform);
         if (config.platform === 'android') {
             result = await android.invokeAndroidBuild(args);
         } else if (config.platform === 'ios') {
@@ -355,30 +355,13 @@ async function ejectProject(args) {
     }
 }
 
-function clearUnusedAssets(platform) {
-    const themeFile = config.src + 'app.theme.js';
-    if (!fs.existsSync(themeFile)) {
-        return;
-    }
-    let content = fs.readFileSync(themeFile, 'utf8');
-
-    if (platform === 'ios') {
-        content = content.replace(/import androidTheme from \'.\/theme\/android\/style.js\';/gm, ``);
-    } else {
-        content = content.replace(/import iosTheme from \'.\/theme\/ios\/style.js\';/gm, ``);
-    }
-    fs.writeFileSync(themeFile, content);
-
-    const themeVariablesFile = config.src + 'app.theme.variables.js';
-    let variablesContent = fs.readFileSync(themeVariablesFile, 'utf8');
-
-    if (platform === 'ios') {
-        variablesContent = variablesContent.replace(/import androidThemeVariables from \'.\/theme\/android\/variables.js\';/gm, ``);
-    } else {
-        variablesContent = variablesContent.replace(/import iosThemeVariables from \'.\/theme\/ios\/variables.js\';/gm, ``);
-    }
-    fs.writeFileSync(themeVariablesFile, variablesContent);
-
+async function clearUnusedAssets(platform) {
+    await readAndReplaceFileContent(config.src + 'app.theme.js', (content) => {
+        if (platform === 'ios') {
+            return content.replace(/ios:\s\{(.|\n)*?\},?/gm, ``);
+        }
+        return content.replace(/android:\s\{(.|\n)*?\},?/gm, ``);
+    });
     logger.info({
         'label': loggerLabel,
         'message': '***** updated theme related files based on selected platform ...***'
