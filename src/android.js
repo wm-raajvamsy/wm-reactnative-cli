@@ -224,7 +224,10 @@ async function embed(args) {
     });
     await readAndReplaceFileContent(`${embedAndroidProject}/app/build.gradle`, 
         // TODO: This is a workaround to get build passed. Need to find appropriate fix.
-        content => content.replace(/android[\s]{/, 'project.ext.react = []\nandroid {'));
+        content => content.replace(/android[\s]{/, `project.ext.react = [
+            enableHermes: true
+        ];
+        android {`));
             // fix for issue at https://github.com/facebook/react-native/issues/33926
             //.replace(/(com\.google\.android\.material:material:([\d\.]*))/, 'com.google.android.material:material:1.6.0'));
     logger.info({
@@ -258,8 +261,7 @@ async function embed(args) {
             content += (Object.keys(rnProperties.getAllProperties())
             .filter(k => (nativeProperties.get(k) === null))
             .map(k => `\n${k}=${rnProperties.get(k)}`)).join('') || '';
-            return content.replace('android.nonTransitiveRClass=true', 'android.nonTransitiveRClass=false')
-                .replace('expo.jsEngine=hermes', 'expo.jsEngine=jsc');
+            return content.replace('android.nonTransitiveRClass=true', 'android.nonTransitiveRClass=false');
         });
     await readAndReplaceFileContent(
         `${embedAndroidProject}/rnApp/src/main/AndroidManifest.xml`,
