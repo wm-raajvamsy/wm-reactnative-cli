@@ -47,7 +47,7 @@ public class ReactNativeAppFragment extends Fragment {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        super.onCreate(null);
         if (getArguments() != null) {
             pageName = getArguments().getString(PAGE_NAME);
         }
