@@ -33,6 +33,8 @@ function getFileSize(path) {
 async function updatePackageJsonFile(path) {
     try {
         let data = fs.readFileSync(path, 'utf-8');
+        //downgrading expo-av to 11 to address the build failure issue
+        data = data.replace(/"expo-av"[\s]*:[\s]*"~13.0.1"/, '"expo-av": "~11.0.1"');
         const jsonData = JSON.parse(data);
         jsonData['main'] = "index";
         if (config.embed) {
