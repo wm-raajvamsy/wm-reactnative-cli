@@ -123,7 +123,11 @@ async function transpile(projectDir, previewUrl, isWebPreview) {
         await exec('npm', ['init', '-y'], {
             cwd: wmProjectDir + '/temp'
         });
-        await exec('npm', ['install', '--save-dev', '@wavemaker/rn-codegen'], {
+        var pom = fs.readFileSync(`${projectDir}/pom.xml`, { encoding: 'utf-8'});
+        var uiVersion = ((pom 
+            && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
+            || [])[1];
+        await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
             cwd: wmProjectDir + '/temp'
         });
         codegen = `${wmProjectDir}/temp/node_modules/@wavemaker/rn-codegen/index.js`;
