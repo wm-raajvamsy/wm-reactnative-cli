@@ -6,10 +6,11 @@ const {
 const os = require('os');
 const { LocalStorage } = require('node-localstorage');
 const {
-    runExpo
+    runExpo, runAndroid, runIos, runWeb
 } = require('./src/expo-launcher');
 const updateNotifier = require('update-notifier');
 const pkg = require('./package.json');
+const { canDoAndroidBuild, canDoIosBuild } = require('./src/requirements');
 updateNotifier({
     pkg: pkg,
     updateCheckInterval : 60 * 60 * 1000
@@ -165,25 +166,57 @@ const args = require('yargs')
                 requiresArg: true
             });
         }
-    ).command('run expo <previewUrl>',
-        'launch local expo with a wavemaker project as source',
-        yargs => {
-            yargs.option('web', {
-                describe: 'If set to true then web will be started.',
-                default: false,
-                type: 'boolean'
-            });
-            yargs.option('clean', {
-                describe: 'If set to true then all existing folders are removed.',
-                default: false,
-                type: 'boolean'
-            });
-        },
-        (args) => {
-            if (args.clean) {
-                localStorage.clear();
-            }
-            runExpo(args.previewUrl, args.web, args.clean)
+    ).command('run', '', (yargs) => {
+        yargs.command('expo <previewUrl>',
+            'Embed React Native project with Native Android project',
+            yargs => {
+                yargs.option('web', {
+                    describe: 'If set to true then web will be started.',
+                    default: false,
+                    type: 'boolean'
+                });
+            },
+            (args) => {
+                if (args.clean) {
+                    localStorage.clear();
+                }
+                runExpo(args.previewUrl, args.web, args.clean)
+        }).command('web-preview <previewUrl>',
+            'launches React Native app in web browser.',
+            yargs => {},
+            (args) => {
+                if (args.clean) {
+                    localStorage.clear();
+                }
+                runWeb(args.previewUrl, args.clean);
+        }).command('android <previewUrl>',
+            'launches React Native app in a Android device.',
+            yargs => {},
+            async (args) => {
+                if (args.clean) {
+                    localStorage.clear();
+                }
+                if (await canDoAndroidBuild()) {
+                    runAndroid(args.previewUrl, args.clean);
+                }
+        }).command('ios <previewUrl>',
+            'launches React Native app in a iOS device.',
+            yargs => {},
+            async (args) => {
+                if (args.clean) {
+                    localStorage.clear();
+                }
+                if (await canDoIosBuild()) {
+                    runIos(args.previewUrl, args.clean);
+                }
+        }).positional('previewUrl', {
+            describe: 'Pereview Url of the React Native app.',
+            type: 'string'
+        }).option('clean', {
+            describe: 'If set to true then all existing folders are removed.',
+            default: false,
+            type: 'boolean'
+        });
     })
     .help('h')
     .alias('h', 'help').argv;

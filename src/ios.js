@@ -7,9 +7,6 @@ const {
     exec
 } = require('./exec');
 const {
-    hasValidNodeVersion,
-    isGitInstalled,
-    isCocoaPodsIstalled,
     validateForIos
  } = require('./requirements');
  const { readAndReplaceFileContent, iterateFiles } = require('./utils');
@@ -142,11 +139,6 @@ async function invokeiosBuild(args) {
     const certificatePassword = args.iCertificatePassword;
     const provisionalFile = args.iProvisioningFile;
     const buildType = args.buildType;
-    if (!await isCocoaPodsIstalled()) {
-        return {
-            success: false
-        }
-    }
     const errors = validateForIos(certificate, certificatePassword, provisionalFile, buildType);
         if (errors.length > 0) {
             return {

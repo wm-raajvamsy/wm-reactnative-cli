@@ -118,19 +118,21 @@ async function transpile(projectDir, previewUrl, isWebPreview) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
     } else {
         const wmProjectDir = getWmProjectDir(projectDir);
-        const temp = wmProjectDir + '/temp';
-        fs.mkdirSync(temp, {recursive: true});
-        await exec('npm', ['init', '-y'], {
-            cwd: wmProjectDir + '/temp'
-        });
-        var pom = fs.readFileSync(`${projectDir}/pom.xml`, { encoding: 'utf-8'});
-        var uiVersion = ((pom 
-            && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
-            || [])[1];
-        await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
-            cwd: wmProjectDir + '/temp'
-        });
         codegen = `${wmProjectDir}/temp/node_modules/@wavemaker/rn-codegen/index.js`;
+        if (!fs.existsSync(codegen)) {
+            const temp = wmProjectDir + '/temp';
+            fs.mkdirSync(temp, {recursive: true});
+            await exec('npm', ['init', '-y'], {
+                cwd: wmProjectDir + '/temp'
+            });
+            var pom = fs.readFileSync(`${projectDir}/pom.xml`, { encoding: 'utf-8'});
+            var uiVersion = ((pom 
+                && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
+                || [])[1];
+            await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
+                cwd: wmProjectDir + '/temp'
+            });
+        }
     }
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
@@ -289,6 +291,37 @@ async function runExpo(previewUrl, web, clean) {
     }
 }
 
+async function runNative(previewUrl, platform, clean) {
+    const isWebPreview = false;
+    try {
+        const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
+
+        await installDependencies(projectDir);
+        updateReanimatedPlugin(projectDir);
+        await exec('expo', ['eject'], {
+            cwd: getExpoProjectDir(projectDir)
+        });
+        await exec('npx', [
+            'react-native',
+            platform === 'android' ? 'run-android' : 'run-ios'
+        ], {
+            cwd: getExpoProjectDir(projectDir)
+        });
+        watchProjectChanges(previewUrl, () => {
+            syncProject().then(() => transpile(projectDir, previewUrl, isWebPreview));
+        });
+        watchForPlatformChanges(() => transpile(projectDir, previewUrl, isWebPreview));
+    } catch(e) {
+        logger.error({
+            label: loggerLabel,
+            message: e
+        });
+    }
+}
+
 module.exports = {
-    runExpo: runExpo
+    runWeb: (previewUrl, clean) => runExpo(previewUrl, true, clean),
+    runExpo: runExpo,
+    runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),
+    runIos: (previewUrl, clean) => runNative(previewUrl, 'ios', clean)
 };

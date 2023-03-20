@@ -4,20 +4,13 @@ const plist = require('plist');
 const path = require('path');
 const android = require('./android');
 const { unzip } = require('./zip');
-let { showConfirmation, VERSIONS } = require('./requirements');
+let { showConfirmation,VERSIONS, 
+    canDoAndroidBuild, canDoIosBuild, canDoEmbed 
+} = require('./requirements');
 
 const {
     exec
 } = require('./exec');
-
-const {
-    hasValidNodeVersion,
-    hasValidJavaVersion,
-    checkForGradleAvailability,
-    isGitInstalled,
-    hasYarnPackage,
-    hasValidExpoVersion
- } = require('./requirements');
 
  const config = require('./config');
  const ios = require('./ios');
@@ -310,13 +303,23 @@ async function ejectProject(args) {
         if (args.platform !== 'android') {
             VERSIONS.JAVA = '1.8.0';
         }
-        if (!await hasValidNodeVersion() || !await hasYarnPackage()
-            || !await isGitInstalled() || !await hasValidExpoVersion()
-            || (args.platform === 'android' && !config.embed
-                && (!await hasValidJavaVersion() || !await checkForGradleAvailability()))) {
-            return {
-                errors: 'check if all prerequisites are installed.',
-                success: false
+        const prerequisiteError = {
+            errors: 'check if all prerequisites are installed.',
+            success: false
+        };
+        if (config.embed) {
+            if (!await canDoEmbed()) {
+                return prerequisiteError;
+            }
+        }
+        if (args.platform === 'android') {
+            if (!await canDoAndroidBuild()) {
+                return prerequisiteError;
+            }
+        }
+        if (args.platform === 'ios') {
+            if (!await canDoIosBuild()) {
+                return prerequisiteError;
             }
         }
         updateAppJsonFile(config.src);

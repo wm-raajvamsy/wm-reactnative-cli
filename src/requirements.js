@@ -132,7 +132,7 @@ async function hasYarnPackage() {
     return await checkAvailability('yarn');
 }
 
-async function isCocoaPodsIstalled() {
+async function isCocoaPodsInstalled() {
     return await checkAvailability('pod');
 }
 
@@ -199,10 +199,40 @@ async function showConfirmation(message) {
     });
 }
 
+async function canDoEmbed() {
+    let flag = true;
+    flag = flag && await hasValidNodeVersion();
+    flag = flag && await hasYarnPackage();
+    flag = flag && await isGitInstalled();
+    flag = flag && await hasValidExpoVersion();
+    return flag;
+}
+
+async function canDoIosBuild() {
+    let flag = true;
+    flag = flag && await hasValidNodeVersion();
+    flag = flag && await hasYarnPackage();
+    flag = flag && await isGitInstalled();
+    flag = flag && await hasValidExpoVersion();
+    flag = flag && await isCocoaPodsInstalled();
+    return flag;
+}
+
+async function canDoAndroidBuild() {
+    let flag = true;
+    flag = flag && !!await hasValidNodeVersion();
+    flag = flag && !!await hasYarnPackage();
+    flag = flag && !!await isGitInstalled();
+    flag = flag && !!await hasValidExpoVersion();
+    flag = flag && !!await hasValidJavaVersion();
+    flag = flag && !!await checkForGradleAvailability();
+    return flag;
+}
+
 module.exports = {
     validateForIos: validateForIos,
     validateForAndroid: validateForAndroid,
-    isCocoaPodsIstalled: isCocoaPodsIstalled,
+    isCocoaPodsInstalled: isCocoaPodsInstalled,
     isGitInstalled: isGitInstalled,
     hasYarnPackage: hasYarnPackage,
     hasValidNodeVersion: hasValidNodeVersion,
@@ -211,6 +241,9 @@ module.exports = {
     checkForAndroidStudioAvailability: checkForAndroidStudioAvailability,
     checkForGradleAvailability: checkForGradleAvailability,
     hasValidExpoVersion: hasValidExpoVersion,
-    VERSIONS: VERSIONS
+    VERSIONS: VERSIONS,
+    canDoEmbed: canDoEmbed,
+    canDoIosBuild: canDoIosBuild,
+    canDoAndroidBuild: canDoAndroidBuild
 }
 // TODO: support for multiple react native versions.
