@@ -195,7 +195,7 @@ function getExpoProjectDir(projectDir) {
 
 async function setup(previewUrl, isWebPreview, _clean) {
     const projectName = await getProjectName(previewUrl);
-    const projectDir = `${global.rootDir}/wm-projects/${projectName}`;
+    const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_')}`;
     if (_clean) {
         clean(projectDir);
     } else {
