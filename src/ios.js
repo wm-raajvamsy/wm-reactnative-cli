@@ -119,6 +119,20 @@ async function embed(args) {
     await readAndReplaceFileContent(
         `${rnIosProject}/app.js`,
         (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));
+    await readAndReplaceFileContent(
+        `${rnIosProject}/node_modules/expo-splash-screen/build/SplashScreen.js`,
+        (content) => {
+            return content.replace('return await ExpoSplashScreen.preventAutoHideAsync();', 
+            `
+            // return await ExpoSplashScreen.preventAutoHideAsync();
+            return Promise.resolve();
+            `).replace('return await ExpoSplashScreen.hideAsync();', 
+            `
+            // return await ExpoSplashScreen.hideAsync();
+            return Promise.resolve();
+            `)
+        }
+    )
     await exec('npx', ['react-native', 'bundle', '--platform',  'ios',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'ios-embed/rnApp/main.jsbundle',
