@@ -195,7 +195,7 @@ function getExpoProjectDir(projectDir) {
 
 async function setup(previewUrl, isWebPreview, _clean) {
     const projectName = await getProjectName(previewUrl);
-    const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_')}`;
+    const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
         clean(projectDir);
     } else {
@@ -291,6 +291,16 @@ async function runExpo(previewUrl, web, clean) {
     }
 }
 
+async function sync(previewUrl, clean) {
+    const isWebPreview = false;
+    const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
+    await installDependencies(projectDir);
+    watchProjectChanges(previewUrl, () => {
+        syncProject().then(() => transpile(projectDir, previewUrl, isWebPreview));
+    });
+    watchForPlatformChanges(() => transpile(projectDir, previewUrl, isWebPreview));
+}
+
 async function runNative(previewUrl, platform, clean) {
     const isWebPreview = false;
     try {
@@ -301,6 +311,13 @@ async function runNative(previewUrl, platform, clean) {
         await exec('expo', ['eject'], {
             cwd: getExpoProjectDir(projectDir)
         });
+        await transpile(projectDir, previewUrl, isWebPreview);
+        await installDependencies(projectDir);
+        if (platform === 'ios') {
+            await exec('pod', ['install'], {
+                cwd: getExpoProjectDir(projectDir) + '/ios'
+            });
+        }
         await exec('npx', [
             'react-native',
             platform === 'android' ? 'run-android' : 'run-ios'
@@ -323,5 +340,6 @@ module.exports = {
     runWeb: (previewUrl, clean) => runExpo(previewUrl, true, clean),
     runExpo: runExpo,
     runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),
-    runIos: (previewUrl, clean) => runNative(previewUrl, 'ios', clean)
+    runIos: (previewUrl, clean) => runNative(previewUrl, 'ios', clean),
+    sync: (previewUrl, clean) => sync(previewUrl, clean)
 };

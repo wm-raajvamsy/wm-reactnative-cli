@@ -6,7 +6,7 @@ const {
 const os = require('os');
 const { LocalStorage } = require('node-localstorage');
 const {
-    runExpo, runAndroid, runIos, runWeb
+    runExpo, runAndroid, runIos, runWeb, sync
 } = require('./src/expo-launcher');
 const updateNotifier = require('update-notifier');
 const pkg = require('./package.json');
@@ -217,6 +217,21 @@ const args = require('yargs')
             default: false,
             type: 'boolean'
         });
+    })
+    .command('sync [previewUrl]', '', (yargs) => {
+        yargs.positional('previewUrl', {
+            describe: 'Pereview Url of the React Native app.',
+            type: 'string'
+        }).option('clean', {
+            describe: 'If set to true then all existing folders are removed.',
+            default: false,
+            type: 'boolean'
+        });
+    }, (args) => {
+        if (args.clean) {
+            localStorage.clear();
+        }
+        sync(args.previewUrl, args.clean);
     })
     .help('h')
     .alias('h', 'help').argv;
