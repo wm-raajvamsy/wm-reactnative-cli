@@ -22,6 +22,8 @@ function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
 }
 
+var isWebPreview = false;
+
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
     const wmProjectDir = getWmProjectDir(projectDir);
@@ -112,7 +114,7 @@ function getIpAddress() {
     return 'localhost';
 }
 
-async function transpile(projectDir, previewUrl, isWebPreview) {
+async function transpile(projectDir, previewUrl) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
@@ -190,10 +192,10 @@ function getWmProjectDir(projectDir) {
 }
 
 function getExpoProjectDir(projectDir) {
-    return `${projectDir}/generated-rn-app`;
+    return `${projectDir}/generated-rn-${isWebPreview ? 'web-' : ''}app`;
 }
 
-async function setup(previewUrl, isWebPreview, _clean) {
+async function setup(previewUrl, _clean) {
     const projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
@@ -202,7 +204,7 @@ async function setup(previewUrl, isWebPreview, _clean) {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
     const syncProject = await setupProject(previewUrl, projectName, projectDir);
-    await transpile(projectDir, previewUrl, isWebPreview);
+    await transpile(projectDir, previewUrl);
     return {projectDir, syncProject};
 }
 
@@ -266,9 +268,8 @@ function watchForPlatformChanges(callBack) {
 }
 
 async function runExpo(previewUrl, web, clean) {
-    const isWebPreview = !!web;
     try {
-        const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
+        const {projectDir, syncProject} = await setup(previewUrl, clean);
 
         await installDependencies(projectDir);
         if (!isWebPreview) {
@@ -280,9 +281,9 @@ async function runExpo(previewUrl, web, clean) {
             launchExpo(projectDir, web);
         }
         watchProjectChanges(previewUrl, () => {
-            syncProject().then(() => transpile(projectDir, previewUrl, isWebPreview));
+            syncProject().then(() => transpile(projectDir, previewUrl));
         });
-        watchForPlatformChanges(() => transpile(projectDir, previewUrl, isWebPreview));
+        watchForPlatformChanges(() => transpile(projectDir, previewUrl));
     } catch(e) {
         logger.error({
             label: loggerLabel,
@@ -292,26 +293,24 @@ async function runExpo(previewUrl, web, clean) {
 }
 
 async function sync(previewUrl, clean) {
-    const isWebPreview = false;
-    const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
+    const {projectDir, syncProject} = await setup(previewUrl, clean);
     await installDependencies(projectDir);
     watchProjectChanges(previewUrl, () => {
-        syncProject().then(() => transpile(projectDir, previewUrl, isWebPreview));
+        syncProject().then(() => transpile(projectDir, previewUrl));
     });
-    watchForPlatformChanges(() => transpile(projectDir, previewUrl, isWebPreview));
+    watchForPlatformChanges(() => transpile(projectDir, previewUrl));
 }
 
 async function runNative(previewUrl, platform, clean) {
-    const isWebPreview = false;
     try {
-        const {projectDir, syncProject} = await setup(previewUrl, isWebPreview, clean);
+        const {projectDir, syncProject} = await setup(previewUrl, clean);
 
         await installDependencies(projectDir);
         updateReanimatedPlugin(projectDir);
         await exec('expo', ['eject'], {
             cwd: getExpoProjectDir(projectDir)
         });
-        await transpile(projectDir, previewUrl, isWebPreview);
+        await transpile(projectDir, previewUrl);
         await installDependencies(projectDir);
         if (platform === 'ios') {
             await exec('pod', ['install'], {
@@ -325,9 +324,9 @@ async function runNative(previewUrl, platform, clean) {
             cwd: getExpoProjectDir(projectDir)
         });
         watchProjectChanges(previewUrl, () => {
-            syncProject().then(() => transpile(projectDir, previewUrl, isWebPreview));
+            syncProject().then(() => transpile(projectDir, previewUrl));
         });
-        watchForPlatformChanges(() => transpile(projectDir, previewUrl, isWebPreview));
+        watchForPlatformChanges(() => transpile(projectDir, previewUrl));
     } catch(e) {
         logger.error({
             label: loggerLabel,
@@ -337,7 +336,10 @@ async function runNative(previewUrl, platform, clean) {
 }
 
 module.exports = {
-    runWeb: (previewUrl, clean) => runExpo(previewUrl, true, clean),
+    runWeb: (previewUrl, clean) => {
+        isWebPreview = true;
+        runExpo(previewUrl, clean);
+    },
     runExpo: runExpo,
     runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),
     runIos: (previewUrl, clean) => runNative(previewUrl, 'ios', clean),
