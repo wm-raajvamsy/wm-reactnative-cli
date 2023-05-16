@@ -33,6 +33,11 @@ async function updatePackageJsonFile(path) {
         if (config.embed) {
             jsonData['dependencies']['@wavemaker/expo-native-module'] = "latest";
         }
+        if (!jsonData['dependencies']['lottie-react-native']
+            || jsonData['dependencies']['lottie-react-native'] === '5.1.5') {
+            jsonData['dependencies']['lottie-react-native'] = "^5.1.5";
+            jsonData['dependencies']['react-lottie-player'] = "^1.5.4";
+        }
         fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
         logger.info({
             'label': loggerLabel,
