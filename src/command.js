@@ -33,6 +33,12 @@ async function updatePackageJsonFile(path) {
         if (config.embed) {
             jsonData['dependencies']['@wavemaker/expo-native-module'] = "latest";
         }
+        if(!jsonData['devDependencies']['@babel/plugin-proposal-optional-chaining']){
+            jsonData['devDependencies']['@babel/plugin-proposal-optional-chaining'] = "^7.21.0";
+        }
+        if(!jsonData['devDependencies']['@babel/plugin-proposal-nullish-coalescing-operator']){
+            jsonData['devDependencies']['@babel/plugin-proposal-nullish-coalescing-operator'] = "^7.18.6";
+        }
         if (!jsonData['dependencies']['lottie-react-native']
             || jsonData['dependencies']['lottie-react-native'] === '5.1.5') {
             jsonData['dependencies']['lottie-react-native'] = "^5.1.5";
