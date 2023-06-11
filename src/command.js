@@ -126,6 +126,13 @@ function updateAppJsonFile(src) {
     if (args.dest) {
         config.src = args.dest;
     }
+    // TODO: iOS app showing blank screen
+    if (!(config.metaData.sslPinning && config.metaData.sslPinning.enabled)) {
+        await readAndReplaceFileContent(`${config.src}/App.js`, content => {
+            return content.replace('if (isSslPinningAvailable()) {', 
+                'if (false && isSslPinningAvailable()) {');
+        });
+    }
     config.outputDirectory = config.src + 'output/';
     config.logDirectory = config.outputDirectory + 'logs/';
     logger.info({

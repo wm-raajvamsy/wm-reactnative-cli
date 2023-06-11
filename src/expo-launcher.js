@@ -10,6 +10,7 @@ const httpProxy = require('http-proxy');
 const {
     exec
 } = require('./exec');
+const { readAndReplaceFileContent } = require('./utils');
 const {VERSIONS, hasValidExpoVersion} = require('./requirements');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
@@ -149,6 +150,13 @@ async function transpile(projectDir, previewUrl) {
     await exec('node',
         [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
+    // TODO: iOS app showing blank screen
+    if (!(config.sslPinning && config.sslPinning.enabled)) {
+        await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/App.js`, content => {
+            return content.replace('if (isSslPinningAvailable()) {', 
+                'if (false && isSslPinningAvailable()) {');
+        });
+    }
     logger.info({
         label: loggerLabel,
         message: `generated expo project at ${getExpoProjectDir(projectDir)}`
