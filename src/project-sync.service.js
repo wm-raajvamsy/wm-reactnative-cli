@@ -19,7 +19,8 @@ async function findProjectId(config) {
         {headers: {
             cookie: config.authCookie
         }})).data;
-    const project = projectList.filter(p => p.displayName === config.projectName);
+    const project = projectList.filter(p => p.displayName === config.projectName)
+        .filter(p => (config.appPreviewUrl.indexOf(p.displayName + "_" + p.vcsBranchId) >= 0));
     return project && project.length && project[0].studioProjectId;
 }
 
