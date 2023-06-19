@@ -18,7 +18,7 @@ updateNotifier({
 	defer: false
 });
 
-global.rootDir = `${os.homedir()}/.wm-reactnative-cli`;
+global.rootDir = process.env.WM_REACTNATIVE_CLI || `${os.homedir()}//wm-reactnative-cli`;
 global.localStorage = new LocalStorage(`${global.rootDir}/.store`);
 // src is the web react native project zip
 const args = require('yargs')
