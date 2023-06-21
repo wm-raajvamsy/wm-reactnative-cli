@@ -1,5 +1,6 @@
 const { URL } = require('url');
 const fs = require('fs-extra');
+const path = require('path');
 const logger = require('./logger');
 const prompt = require('prompt');
 const axios = require('axios');
@@ -13,12 +14,6 @@ const MAX_REQUEST_ALLOWED_TIME = 5 * 60 * 1000;
 const loggerLabel = 'project-sync-service';
 
 
-async function pullChanges(projectDir) {
-    await exec('mvn', ['wavemaker-workspace:pull'], {
-        cwd: projectDir
-    });
-}
-
 async function findProjectId(config) {
     const projectList = (await axios.get(`${config.baseUrl}/edn-services/rest/users/projects/list`,
         {headers: {
@@ -28,25 +23,19 @@ async function findProjectId(config) {
     return project && project.length && project[0].studioProjectId;
 }
 
-async function downloadProject(config, projectDir) {
+async function downloadProject(projectId, config, projectDir) {
     const start = Date.now();
     console.log('\n\n\n');
     logger.info({
         label: loggerLabel,
         message: 'downloading the project.'
     });
-    const projectId = await findProjectId(config);
-    const fileId = (await axios.post(`${config.baseUrl}/studio/services/projects/${projectId}/export`, 
-    JSON.stringify({exportType: "ZIP", targetName: "BugZ"}),
-    {
-        headers: {
-            cookie: config.authCookie,
-            'content-type': 'application/json;charset=UTF-8'
-        }
-    })).data.result;
     const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
-    const res = await axios.get(`${config.baseUrl}/file-service/${fileId}`, {
-        responseType: 'stream'
+    const res = await axios.get(`${config.baseUrl}/studio/services/projects/${projectId}/vcs/gitInit`, {
+       responseType: 'stream',
+       headers: {
+           cookie: config.authCookie
+       }
     });
     if (res.status !== 200) {
         throw new Error('failed to download the project');
@@ -60,21 +49,73 @@ async function downloadProject(config, projectDir) {
         });
         fw.on('close', resolve);
     });
-    fs.mkdirpSync(projectDir);
-    await unzip(tempFile, projectDir);
+    const gitDir = path.join(projectDir, '.git');
+    fs.mkdirpSync(gitDir);
+    await unzip(tempFile, gitDir);
+    await exec('git', ['restore', '.'], {cwd: projectDir});
     logger.info({
         label: loggerLabel,
         message: `downloaded the project in (${Date.now() - start} ms).`
     });
-    return tempFile;
+    fs.unlink(tempFile);
 }
 
-function initWorkspace() {
+async function pullChanges(projectId, config, projectDir) {
+    const output = await exec('git', ['rev-parse', 'HEAD'], {
+        cwd: projectDir
+    });
+    const headCommitId = output[0];
+    logger.debug({label: loggerLabel, message: 'HEAD commit id is ' + headCommitId});
+    logger.info({label: loggerLabel, message: 'pulling new changes from studio'});
+    const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
+    console.log(tempFile);
+    const res = await axios.get(`${config.baseUrl}/studio/services/projects/${projectId}/vcs/remoteChanges?headCommitId=${headCommitId}`, {
+        responseType: 'stream',
+        headers: {
+            cookie: config.authCookie
+        }
+    });
+    if (res.status !== 200) {
+        throw new Error('failed to pull project changes');
+    }
+    await new Promise((resolve, reject) => {
+        const fw = fs.createWriteStream(tempFile);
+        res.data.pipe(fw);
+        fw.on('error', err => {
+            reject(err);
+            fw.close();
+        });
+        fw.on('close', resolve);
+    });
+    const tempDir = path.join(`${os.tmpdir()}`, `changes_${Date.now()}`);
+    fs.mkdirpSync(tempDir);
+    await unzip(tempFile, tempDir);
 
+    await exec('git', ['reset', '--hard', 'master'], {cwd: projectDir});
+    await exec('git', ['pull', path.join(tempDir, 'remoteChanges.bundle'), 'master'], {cwd: projectDir});
+    await exec('git', ['apply', path.join(tempDir, 'patchFile.patch')], {cwd: projectDir});
+    logger.debug({label: loggerLabel, message: 'Copying any uncommitted binary files'});
+    copyContentsRecursiveSync(path.join(tempDir, 'binaryFiles'), projectDir);
+    fs.rmdir(tempDir, { recursive: true, force: true });
+    fs.unlink(tempFile);
 }
 
-function pullChanges() {
-
+function copyContentsRecursiveSync(src, dest) {
+  fs.readdirSync(src).forEach(function(file) {
+      var childSrc = path.join(src, file);
+      var childDest = path.join(dest, file);
+      var exists = fs.existsSync(childSrc);
+      var stats = exists && fs.statSync(childSrc);
+      var isDirectory = exists && stats.isDirectory();
+      if (isDirectory) {
+          if (!fs.existsSync(childDest)) {
+              fs.mkdirSync(childDest);
+          }
+          copyContentsRecursiveSync(childSrc, childDest);
+      } else {
+	fs.copyFileSync(childSrc, childDest);
+      }
+  });
 }
 
 function extractAuthCookie(res) {
@@ -167,8 +208,9 @@ async function setup(previewUrl, projectName) {
 
 async function setupProject(previewUrl, projectName, toDir) {
     const config = await setup(previewUrl, projectName);
-    await downloadProject(config, toDir);
-    return () => downloadProject(config, toDir);
+    const projectId = await findProjectId(config);
+    await downloadProject(projectId, config, toDir);
+    return () => pullChanges(projectId, config, toDir);
 };
 
 module.exports = {
