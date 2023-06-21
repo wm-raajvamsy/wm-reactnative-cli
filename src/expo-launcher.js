@@ -275,7 +275,7 @@ function watchForPlatformChanges(callBack) {
     }, 5000);
 }
 
-async function runExpo(previewUrl, web, clean) {
+async function runExpo(previewUrl, clean) {
     try {
         const {projectDir, syncProject} = await setup(previewUrl, clean);
 
