@@ -94,7 +94,7 @@ async function pullChanges(projectId, config, projectDir) {
 
     await exec('git', ['reset', '--hard', 'master'], {cwd: projectDir});
     await exec('git', ['pull', path.join(tempDir, 'remoteChanges.bundle'), 'master'], {cwd: projectDir});
-    await exec('git', ['apply', path.join(tempDir, 'patchFile.patch')], {cwd: projectDir});
+    await exec('git', ['apply', '--allow-empty', '--ignore-space-change', path.join(tempDir, 'patchFile.patch')], {cwd: projectDir});
     logger.debug({label: loggerLabel, message: 'Copying any uncommitted binary files'});
     copyContentsRecursiveSync(path.join(tempDir, 'binaryFiles'), projectDir);
     fs.rmdir(tempDir, { recursive: true, force: true });
