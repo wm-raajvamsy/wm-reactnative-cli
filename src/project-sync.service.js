@@ -20,17 +20,13 @@ async function findProjectId(config) {
             cookie: config.authCookie
         }})).data;
     const project = projectList.filter(p => p.displayName === config.projectName)
-        .filter(p => (config.appPreviewUrl.indexOf(p.displayName + "_" + p.vcsBranchId) >= 0));
+        .filter(p => (config.appPreviewUrl.indexOf(p.name + "_" + p.vcsBranchId) >= 0));
     return project && project.length && project[0].studioProjectId;
 }
 
 async function downloadProject(projectId, config, projectDir) {
     const start = Date.now();
-    console.log('\n\n\n');
-    logger.info({
-        label: loggerLabel,
-        message: 'downloading the project.'
-    });
+    logger.info({label: loggerLabel,message: 'downloading the project...'});
     const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
     const res = await axios.get(`${config.baseUrl}/studio/services/projects/${projectId}/vcs/gitInit`, {
        responseType: 'stream',
@@ -67,7 +63,7 @@ async function pullChanges(projectId, config, projectDir) {
     });
     const headCommitId = output[0];
     logger.debug({label: loggerLabel, message: 'HEAD commit id is ' + headCommitId});
-    logger.info({label: loggerLabel, message: 'pulling new changes from studio'});
+    logger.info({label: loggerLabel, message: 'pulling new changes from studio...'});
     const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
     console.log(tempFile);
     const res = await axios.get(`${config.baseUrl}/studio/services/projects/${projectId}/vcs/remoteChanges?headCommitId=${headCommitId}`, {
