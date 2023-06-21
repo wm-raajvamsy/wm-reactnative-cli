@@ -360,7 +360,7 @@ async function runNative(previewUrl, platform, clean) {
 
         await installDependencies(projectDir);
         updateReanimatedPlugin(projectDir);
-        await exec('expo', ['eject'], {
+        await exec('npx', ['expo','prebuild'], {
             cwd: getExpoProjectDir(projectDir)
         });
         await transpile(projectDir, previewUrl);
