@@ -121,19 +121,19 @@ async function transpile(projectDir, previewUrl) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
     } else {
         const wmProjectDir = getWmProjectDir(projectDir);
-        codegen = `${wmProjectDir}/temp/node_modules/@wavemaker/rn-codegen/index.js`;
-        if (!fs.existsSync(codegen)) {
-            const temp = wmProjectDir + '/temp';
+        codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
+        if (!fs.existsSync(`${codegen}/index.js`)) {
+            const temp = projectDir + '/target/codegen';
             fs.mkdirSync(temp, {recursive: true});
             await exec('npm', ['init', '-y'], {
-                cwd: wmProjectDir + '/temp'
+                cwd: temp
             });
             var pom = fs.readFileSync(`${projectDir}/pom.xml`, { encoding: 'utf-8'});
             var uiVersion = ((pom 
                 && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
                 || [])[1];
             await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
-                cwd: wmProjectDir + '/temp'
+                cwd: temp
             });
         }
     }
@@ -286,10 +286,24 @@ async function runExpo(previewUrl, clean) {
         if (isWebPreview) {
             launchServiceProxy(projectDir, previewUrl);
         } else {
-            launchExpo(projectDir, web);
+            launchExpo(projectDir);
         }
         watchProjectChanges(previewUrl, () => {
-            syncProject().then(() => transpile(projectDir, previewUrl));
+            const startTime = Date.now();
+            syncProject()
+            .then(() => {
+                logger.info({
+                    label: loggerLabel,
+                    message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
+                });
+            })
+            .then(() => transpile(projectDir, previewUrl))
+            .then(() => {
+                logger.info({
+                    label: loggerLabel,
+                    message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
+                });
+            });
         });
         watchForPlatformChanges(() => transpile(projectDir, previewUrl));
     } catch(e) {
@@ -304,7 +318,20 @@ async function sync(previewUrl, clean) {
     const {projectDir, syncProject} = await setup(previewUrl, clean);
     await installDependencies(projectDir);
     watchProjectChanges(previewUrl, () => {
-        syncProject().then(() => transpile(projectDir, previewUrl));
+        const startTime = Date.now();
+        syncProject()
+        .then(() => {
+            logger.info({
+                label: loggerLabel,
+                message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
+            });
+        }).then(() => transpile(projectDir, previewUrl))
+        .then(() => {
+            logger.info({
+                label: loggerLabel,
+                message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
+            });
+        });
     });
     watchForPlatformChanges(() => transpile(projectDir, previewUrl));
 }
@@ -332,7 +359,21 @@ async function runNative(previewUrl, platform, clean) {
             cwd: getExpoProjectDir(projectDir)
         });
         watchProjectChanges(previewUrl, () => {
-            syncProject().then(() => transpile(projectDir, previewUrl));
+            const startTime = Date.now();
+            syncProject()
+                .then(() => {
+                    logger.info({
+                        label: loggerLabel,
+                        message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
+                    });
+                })
+                .then(() => transpile(projectDir, previewUrl))
+                .then(() => {
+                    logger.info({
+                        label: loggerLabel,
+                        message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
+                    });
+                });
         });
         watchForPlatformChanges(() => transpile(projectDir, previewUrl));
     } catch(e) {
