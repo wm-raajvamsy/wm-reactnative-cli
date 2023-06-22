@@ -6,8 +6,9 @@ const {
 const os = require('os');
 const { LocalStorage } = require('node-localstorage');
 const {
-    runExpo, runAndroid, runIos, runWeb, sync
+    runExpo, runAndroid, runIos, sync
 } = require('./src/expo-launcher');
+const { runWeb } = require('./src/web-preview-launcher');
 const updateNotifier = require('update-notifier');
 const pkg = require('./package.json');
 const { canDoAndroidBuild, canDoIosBuild } = require('./src/requirements');
