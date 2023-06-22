@@ -127,9 +127,8 @@ function extractAuthCookie(res) {
     }
 }
 
-async function authenticate(config) {
+async function authenticateWithUserNameAndPassword(config) {
     const credentials = await getUserCredentials();
-    //const credentials = {username: 'srinivasa.boyina@wavemaker.com', password: 'Pramati@123'};
     return axios.post(`${config.baseUrl}/login/authenticate`, 
         qs.stringify({
             j_username: credentials.username,
@@ -144,6 +143,24 @@ async function authenticate(config) {
         }
         return cookie;
     });
+}
+
+async function authenticateWithToken(config, showHelp) {
+    if (showHelp) {
+        console.log('***************************************************************************************');
+        console.log('* Please open the below url in the browser, where your WaveMaker studio is opened.    *');
+        console.log('* Copy the response content and paste in the terminal.                                *');
+        console.log('***************************************************************************************');
+        console.log(`\n\n`);
+        console.log(`${config.baseUrl}/studio/services/auth/token`);
+        console.log(`\n\n`);
+    }
+    const cookie = (await getAuthToken()).token;
+    if (!cookie) {
+        console.log('Not able to login. Try again.');
+        return authenticateWithToken(config);
+    }
+    return 'auth_cookie='+cookie;
 }
 
 function getUserCredentials() {
@@ -170,14 +187,29 @@ function getUserCredentials() {
     });
 }
 
+function getAuthToken() {
+    var schema = {
+        properties: {
+            token: {
+                required: true
+            }
+        }
+      };
+    prompt.start();
+    return new Promise((resolve, reject) => {
+        prompt.get(schema, (err, result) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(result);
+            }
+        });
+    });
+}
+
 async function checkAuthCookie(config) {
     try {
-        await axios.get(`${config.baseUrl}/studio/services/auth/token`, {
-            headers: {
-                cookie: config.authCookie
-            },
-            maxRedirects: 0
-        });
+        await findProjectId(config);
         logger.info({
             label: loggerLabel,
             message: `user authenticated.`
@@ -197,8 +229,9 @@ async function setup(previewUrl, projectName) {
     };
     const isAuthenticated = await checkAuthCookie(config);
     if (!isAuthenticated) {
-        console.log(`Need to login to Studio (${config.baseUrl}). \n Please enter your Studio credentails.`);
-        config.authCookie = await authenticate(config);
+        //console.log(`Need to login to Studio (${config.baseUrl}). \n Please enter your Studio credentails.`);
+        //config.authCookie = await authenticateWithUserNameAndPassword(config);
+        config.authCookie = await authenticateWithToken(config, true);
         global.localStorage.setItem(STORE_KEY, config.authCookie)
     }
     return config;
