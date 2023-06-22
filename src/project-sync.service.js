@@ -89,6 +89,7 @@ async function pullChanges(projectId, config, projectDir) {
     await unzip(tempFile, tempDir);
 
     await exec('git', ['reset', '--hard', 'master'], {cwd: projectDir});
+    await exec('git', ['clean', '-fd'], {cwd: projectDir});
     await exec('git', ['pull', path.join(tempDir, 'remoteChanges.bundle'), 'master'], {cwd: projectDir});
     await exec('git', ['apply', '--allow-empty', '--ignore-space-change', path.join(tempDir, 'patchFile.patch')], {cwd: projectDir});
     logger.debug({label: loggerLabel, message: 'Copying any uncommitted binary files'});
