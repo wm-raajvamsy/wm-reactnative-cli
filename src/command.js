@@ -349,7 +349,7 @@ async function ejectProject(args) {
         await exec('yarn', ['install'], {
             cwd: config.src
         });
-        await exec('expo', ['eject'], {
+        await exec('npx', ['expo','prebuild'], {
             cwd: config.src
         });
         logger.info({
