@@ -32,6 +32,7 @@ function launchServiceProxy(projectDir, previewUrl) {
                 req.url = req.url.substring(2);
                 proxy.web(req, res, {
                     target: previewUrl,
+                    secure: false,
                     xfwd: false,
                     changeOrigin: true,
                     cookiePathRewrite: {
@@ -254,7 +255,7 @@ async function runWeb(previewUrl, clean) {
             .then(() => {
                 return transpile(projectDir, previewUrl).then(() => {
                     if (!isExpoStarted) {
-                        return exec('npx', ['expo', 'start', '--web'], {
+                        return exec('npx', ['expo', 'start', '--web', '--offline'], {
                             cwd: getExpoProjectDir(projectDir)
                         });
                     }
