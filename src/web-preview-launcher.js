@@ -129,7 +129,7 @@ async function getCodeGenPath(projectDir) {
 
 async function installDependencies(projectDir) {
     const expoDir = getExpoProjectDir(projectDir);
-    if (fs.existsSync(`${expoDir}/node_modules`)) {
+    if (fs.existsSync(`${expoDir}/node_modules/expo`)) {
         return;
     }
     await exec('npm', ['install'], {
