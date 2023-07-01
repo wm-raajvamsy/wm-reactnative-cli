@@ -32,6 +32,7 @@ function launchServiceProxy(projectDir, previewUrl) {
                 req.url = req.url.substring(2);
                 proxy.web(req, res, {
                     target: previewUrl,
+                    secure: false,
                     xfwd: false,
                     changeOrigin: true,
                     cookiePathRewrite: {
@@ -109,9 +110,9 @@ async function getCodeGenPath(projectDir) {
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build`;
     } else {
-        codegen = `${projectDir}/target/node_modules/@wavemaker/rn-codegen`;
+        codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
         if (!fs.existsSync(`${codegen}/index.js`)) {
-            const temp = projectDir + '/target';
+            const temp = projectDir + '/target/codegen';
             fs.mkdirSync(temp, {recursive: true});
             await exec('npm', ['init', '-y'], {
                 cwd: temp
@@ -129,7 +130,7 @@ async function getCodeGenPath(projectDir) {
 
 async function installDependencies(projectDir) {
     const expoDir = getExpoProjectDir(projectDir);
-    if (fs.existsSync(`${expoDir}/node_modules`)) {
+    if (fs.existsSync(`${expoDir}/node_modules/expo`)) {
         return;
     }
     await exec('npm', ['install'], {
@@ -171,7 +172,7 @@ function getWmProjectDir(projectDir) {
 }
 
 function getExpoProjectDir(projectDir) {
-    return `${projectDir}/generated-rn-app`;
+    return `${projectDir}/target/generated-rn-web-app`;
 }
 
 async function setup(previewUrl, _clean) {
@@ -243,15 +244,27 @@ async function runWeb(previewUrl, clean) {
         launchServiceProxy(projectDir, previewUrl);
         let isExpoStarted = false;
         watchProjectChanges(previewUrl, () => {
-            syncProject().then(() => {
+            const startTime = Date.now();
+            syncProject()
+            .then(() => {
+                logger.info({
+                    label: loggerLabel,
+                    message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
+                });
+            })
+            .then(() => {
                 return transpile(projectDir, previewUrl).then(() => {
                     if (!isExpoStarted) {
-                        return exec('npx', ['expo', 'start', '--web'], {
+                        return exec('npx', ['expo', 'start', '--web', '--offline'], {
                             cwd: getExpoProjectDir(projectDir)
                         });
                     }
                 }).then(() => {
                     isExpoStarted = true;
+                    logger.info({
+                        label: loggerLabel,
+                        message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
+                    });
                 });
             });
         });
