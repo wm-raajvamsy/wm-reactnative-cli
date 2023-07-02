@@ -143,7 +143,7 @@ async function transpile(projectDir, previewUrl) {
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
     } else {
-        config.serverPath = previewUrl;
+        config.serverPath = `http://${getIpAddress()}:19009/`;
     }
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
@@ -317,6 +317,7 @@ async function runExpo(previewUrl, clean) {
 async function sync(previewUrl, clean) {
     const {projectDir, syncProject} = await setup(previewUrl, clean);
     await installDependencies(projectDir);
+    launchServiceProxy(projectDir, previewUrl);
     watchProjectChanges(previewUrl, () => {
         const startTime = Date.now();
         syncProject()
