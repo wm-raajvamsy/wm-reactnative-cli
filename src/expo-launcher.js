@@ -200,7 +200,10 @@ function getWmProjectDir(projectDir) {
 }
 
 function getExpoProjectDir(projectDir) {
-    return `${projectDir}/generated-rn-${isWebPreview ? 'web-' : ''}app`;
+    if (isWebPreview) {
+        return `${projectDir}/target/generated-rn-web-app`;
+    }
+    return `${projectDir}/generated-rn-app`;
 }
 
 async function setup(previewUrl, _clean) {
@@ -386,7 +389,7 @@ async function runNative(previewUrl, platform, clean) {
 }
 
 module.exports = {
-    runWeb: (previewUrl, clean) => {
+    runESBuildWebPreview: (previewUrl, clean) => {
         isWebPreview = true;
         runExpo(previewUrl, clean);
     },
