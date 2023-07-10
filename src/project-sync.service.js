@@ -155,7 +155,7 @@ async function authenticateWithToken(config, showHelp) {
         console.log(`${config.baseUrl}/studio/services/auth/token`);
         console.log(`\n\n`);
     }
-    const cookie = (await getAuthToken()).token;
+    const cookie = (await getAuthToken()).token.split(';')[0];
     if (!cookie) {
         console.log('Not able to login. Try again.');
         return authenticateWithToken(config);
