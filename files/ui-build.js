@@ -318,7 +318,7 @@ if (args.targetPlatform === '"web-preview"') {
                 </div>
                 <div>
                 <b style="color: #82d3e0;">3.</b> Then, open <a style="color: #82d3e0;" href="http://localhost:19009" target="_blank">http://localhost:19009</a> in a web browser. 
-                <br><span><br><br><br><i style="color: #eee;">To know more, <a href="https://docs.wavemaker.com/learn/react-native/generate-webpreview-locally" target="_blank" style="color: #82d3e0;">please visit this link</a>.</span></i>
+                <br><span><br><br><br><i style="color: #eee;">To know more, <a href="https://docs.wavemaker.com/learn/react-native/generate-web-preview-locally" target="_blank" style="color: #82d3e0;">please visit this link</a>.</span></i>
                 <span style="display:none">Modified at : ${Date.now()}</span>
                 </div>
             </body>
