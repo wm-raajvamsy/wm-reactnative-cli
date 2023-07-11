@@ -115,6 +115,19 @@ function getIpAddress() {
     return 'localhost';
 }
 
+async function updatePackageJsonFile(path) {
+    let data = fs.readFileSync(path, 'utf-8');
+    const jsonData = JSON.parse(data);
+    if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
+        jsonData['dependencies']['expo-file-system'] = '15.2.2'
+    }
+    fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
+    logger.info({
+        'label': loggerLabel,
+        'message': 'updated package.json file'
+    });
+}
+
 async function transpile(projectDir, previewUrl) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
@@ -164,6 +177,7 @@ async function transpile(projectDir, previewUrl) {
 }
 
 async function installDependencies(projectDir) {
+    await updatePackageJsonFile(getExpoProjectDir(projectDir)+ '/package.json');
     await exec('npm', ['install'], {
         cwd: getExpoProjectDir(projectDir)
     });
