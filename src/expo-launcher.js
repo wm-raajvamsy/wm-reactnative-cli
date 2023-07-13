@@ -76,6 +76,12 @@ function launchServiceProxy(projectDir, previewUrl) {
             proxyRes.headers['set-cookie'] = cookies;
         }
     });
+    proxy.on('error', function(err, req, res){
+        logger.error({
+            label: loggerLabel,
+            message: err
+        });
+    })
     logger.info({
         label: loggerLabel,
         message: `Service proxy launched at ${proxyUrl} .`
