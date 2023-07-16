@@ -159,7 +159,7 @@ function updateOptimizationFlags() {
     }
 }
 
-function updateAndroidBuildGradleFile(type) {
+async function updateAndroidBuildGradleFile(type) {
     const buildGradlePath = config.src + 'android/app/build.gradle';
     if (fs.existsSync(buildGradlePath)) {
         let content = fs.readFileSync(buildGradlePath, 'utf8');
@@ -175,16 +175,18 @@ function updateAndroidBuildGradleFile(type) {
                     .replace(/bundleInRelease\: false/gm, `bundleInRelease: true`);
             }
         } else {
-            if (content.search(`entryFile: "index.js"`) === -1) {
+            if (content.search(`entryFile: "index.js"`) === -1 && content.search('project.ext.react =') >= 0) {
                 content = content.replace(/^(?!\s)project\.ext\.react = \[/gm, `project.ext.react = [
         entryFile: "index.js",
         bundleAssetName: "index.android.bundle",
         bundleInDebug: true,
         devDisabledInDebug: true,`);
-            } else {
+            } else if (content.indexOf(`bundleInDebug:`) >= 0) {
                 content = content.replace(/bundleInDebug\: false/gm, `bundleInDebug: true`)
                     .replace(/devDisabledInDebug\: false/gm, `devDisabledInDebug: true`)
                     .replace(/bundleInRelease\: true/gm, `bundleInRelease: false`);
+            } else {
+                await createJSBundle();
             }
         }
         fs.writeFileSync(buildGradlePath, content);
@@ -198,6 +200,16 @@ function updateSettingsGradleFile(appName) {
         content = content.replace(/^rootProject.name = \'\'/gm, `rootProject.name = ${appName}`);
         fs.writeFileSync(path, content);
     }
+}
+
+async function createJSBundle() {
+    fs.mkdirpSync(config.src + '/android/app/src/main/assets');
+    return await exec('npx', ['react-native', 'bundle', '--platform',  'android',
+            '--dev', 'false', '--entry-file', 'index.js',
+            '--bundle-output', 'android/app/src/main/assets/index.android.bundle',
+            '--assets-dest', 'android/app/src/main/res/'], {
+        cwd: config.src
+    });
 }
 
 async function embed(args) {
@@ -346,7 +358,7 @@ async function invokeAndroidBuild(args) {
         updateAndroidBuildGradleFile(args.buildType);
         await generateSignedApk(keyStore, storePassword, keyAlias, keyPassword, args.packageType);
     } else {
-        updateAndroidBuildGradleFile(args.buildType);
+        await updateAndroidBuildGradleFile(args.buildType);
         logger.info({
             label: loggerLabel,
             message: 'Updated build.gradle file with debug configuration'
