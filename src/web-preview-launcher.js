@@ -13,7 +13,7 @@ const {
 const { readAndReplaceFileContent } = require('./utils');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
-const webPreviewPort = 19006;
+let webPreviewPort = 19006;
 const proxyPort = 19009;
 const proxyUrl = `http://localhost:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
@@ -97,15 +97,38 @@ async function updateForWebPreview(projectDir) {
     const package = JSON.parse(fs.readFileSync(packageFile, {
         encoding: 'utf-8'
     }));
-    package.dependencies['react-native-reanimated'] = '^1.13.2';
-    package.dependencies['victory'] = '^36.5.3';
-    package.devDependencies['esbuild'] = '^0.15.15';
-    package.devDependencies['fs-extra'] = '^10.0.0';
+    if (package['dependencies']['expo'] === '48.0.18') {
+        webPreviewPort = 19000;
+        package.devDependencies['esbuild'] = '^0.15.15';
+        package.devDependencies['fs-extra'] = '^10.0.0';
+        package.devDependencies['@babel/plugin-proposal-export-namespace-from'] = '7.18.9';
+        fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
+        await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => {
+            if (content.indexOf('@babel/plugin-proposal-export-namespace-from') < 0) {
+                content = content.replace(`'react-native-reanimated/plugin',`, `
+                '@babel/plugin-proposal-export-namespace-from',
+                'react-native-reanimated/plugin',
+                `)
+            }
+            return content.replace(`'transform-remove-console'`, '');
+        });
+        await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/app.json`, content => {
+            const appJson = JSON.parse(content);
+            if (!appJson['expo']['web']['bundler']) {
+                appJson['expo']['web']['bundler'] = 'metro';
+            }
+            return JSON.stringify(appJson, null, 4);
+        });
+    } else {
+        package.dependencies['react-native-reanimated'] = '^1.13.2';
+        package.dependencies['victory'] = '^36.5.3';
+        package.devDependencies['esbuild'] = '^0.15.15';
+        package.devDependencies['fs-extra'] = '^10.0.0';
+        fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
+        readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => 
+            content.replace(`'react-native-reanimated/plugin',`, ''));
+    }
     fs.writeFileSync(packageFile, JSON.stringify(package, null, 4));
-    fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
-    readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => 
-        content.replace(`'react-native-reanimated/plugin',`, '')
-        .replace(`'transform-remove-console'`, ''))
 }
 
 async function getCodeGenPath(projectDir) {
@@ -244,7 +267,6 @@ function watchForPlatformChanges(callBack) {
 async function runWeb(previewUrl, clean) {
     try {
         const {projectDir, syncProject} = await setup(previewUrl, clean);
-        launchServiceProxy(projectDir, previewUrl);
         let isExpoStarted = false;
         watchProjectChanges(previewUrl, () => {
             const startTime = Date.now();
@@ -259,6 +281,7 @@ async function runWeb(previewUrl, clean) {
                 return transpile(projectDir, previewUrl).then(() => {
                     if (!isExpoStarted) {
                         isExpoStarted = true;
+                        launchServiceProxy(projectDir, previewUrl);
                         return exec('npx', ['expo', 'start', '--web', '--offline'], {
                             cwd: getExpoProjectDir(projectDir)
                         });
