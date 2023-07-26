@@ -50,6 +50,9 @@ function launchServiceProxy(projectDir, previewUrl) {
         proxyReq.setHeader('origin', previewUrl);
         proxyReq.setHeader('referer', previewUrl);
     });
+    proxy.on('error', function(e) {
+        console.error(e);
+    });
     proxy.on('proxyRes', function(proxyRes, req, res, options) {
         var cookies = proxyRes.headers['set-cookie'];
         if (cookies) {
@@ -172,7 +175,7 @@ function getWmProjectDir(projectDir) {
 }
 
 function getExpoProjectDir(projectDir) {
-    return `${projectDir}/target/generated-rn-web-app`;
+    return `${projectDir}/target/generated-expo-web-app`;
 }
 
 async function setup(previewUrl, _clean) {
@@ -255,6 +258,7 @@ async function runWeb(previewUrl, clean) {
             .then(() => {
                 return transpile(projectDir, previewUrl).then(() => {
                     if (!isExpoStarted) {
+                        isExpoStarted = true;
                         return exec('npx', ['expo', 'start', '--web', '--offline'], {
                             cwd: getExpoProjectDir(projectDir)
                         });

@@ -223,7 +223,7 @@ function getExpoProjectDir(projectDir) {
     if (isWebPreview) {
         return `${projectDir}/target/generated-rn-web-app`;
     }
-    return `${projectDir}/generated-rn-app`;
+    return `${projectDir}/target/generated-expo-app`;
 }
 
 async function setup(previewUrl, _clean) {
