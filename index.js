@@ -6,7 +6,7 @@ const {
 const os = require('os');
 const { LocalStorage } = require('node-localstorage');
 const {
-    runExpo, runAndroid, runIos, sync
+    runExpo, runAndroid, runIos, sync, runESBuildWebPreview
 } = require('./src/expo-launcher');
 const { runWeb } = require('./src/web-preview-launcher');
 const updateNotifier = require('update-notifier');
@@ -189,7 +189,11 @@ const args = require('yargs')
                 if (args.clean) {
                     localStorage.clear();
                 }
-                runWeb(args.previewUrl, args.clean);
+                if (args.esbuild) {
+                    runESBuildWebPreview(args.previewUrl, args.clean);
+                } else {
+                    runWeb(args.previewUrl, args.clean);
+                }
         }).command('android <previewUrl>',
             'launches React Native app in a Android device.',
             yargs => {},

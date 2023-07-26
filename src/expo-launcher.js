@@ -76,6 +76,12 @@ function launchServiceProxy(projectDir, previewUrl) {
             proxyRes.headers['set-cookie'] = cookies;
         }
     });
+    proxy.on('error', function(err, req, res){
+        logger.error({
+            label: loggerLabel,
+            message: err
+        });
+    })
     logger.info({
         label: loggerLabel,
         message: `Service proxy launched at ${proxyUrl} .`
@@ -115,6 +121,19 @@ function getIpAddress() {
     return 'localhost';
 }
 
+async function updatePackageJsonFile(path) {
+    let data = fs.readFileSync(path, 'utf-8');
+    const jsonData = JSON.parse(data);
+    if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
+        jsonData['dependencies']['expo-file-system'] = '15.2.2'
+    }
+    fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
+    logger.info({
+        'label': loggerLabel,
+        'message': 'updated package.json file'
+    });
+}
+
 async function transpile(projectDir, previewUrl) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
@@ -143,7 +162,7 @@ async function transpile(projectDir, previewUrl) {
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
     } else {
-        config.serverPath = previewUrl;
+        config.serverPath = `http://${getIpAddress()}:19009/`;
     }
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
@@ -164,6 +183,7 @@ async function transpile(projectDir, previewUrl) {
 }
 
 async function installDependencies(projectDir) {
+    await updatePackageJsonFile(getExpoProjectDir(projectDir)+ '/package.json');
     await exec('npm', ['install'], {
         cwd: getExpoProjectDir(projectDir)
     });
@@ -200,7 +220,10 @@ function getWmProjectDir(projectDir) {
 }
 
 function getExpoProjectDir(projectDir) {
-    return `${projectDir}/generated-rn-${isWebPreview ? 'web-' : ''}app`;
+    if (isWebPreview) {
+        return `${projectDir}/target/generated-rn-web-app`;
+    }
+    return `${projectDir}/generated-rn-app`;
 }
 
 async function setup(previewUrl, _clean) {
@@ -317,6 +340,7 @@ async function runExpo(previewUrl, clean) {
 async function sync(previewUrl, clean) {
     const {projectDir, syncProject} = await setup(previewUrl, clean);
     await installDependencies(projectDir);
+    launchServiceProxy(projectDir, previewUrl);
     watchProjectChanges(previewUrl, () => {
         const startTime = Date.now();
         syncProject()
@@ -385,7 +409,7 @@ async function runNative(previewUrl, platform, clean) {
 }
 
 module.exports = {
-    runWeb: (previewUrl, clean) => {
+    runESBuildWebPreview: (previewUrl, clean) => {
         isWebPreview = true;
         runExpo(previewUrl, clean);
     },
