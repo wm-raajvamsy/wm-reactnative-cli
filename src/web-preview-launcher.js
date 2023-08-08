@@ -71,7 +71,7 @@ async function transpile(projectDir, previewUrl) {
     codegen || await getCodeGenPath(projectDir);
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
-    const config = require(configJSONFile);
+    const config = fs.readJSONSync(configJSONFile);
     config.serverPath = `${proxyUrl}/_`;
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     await exec('node',
@@ -201,7 +201,7 @@ function getExpoProjectDir(projectDir) {
     return `${projectDir}/target/generated-expo-web-app`;
 }
 
-async function setup(previewUrl, _clean) {
+async function setup(previewUrl, _clean, authToken) {
     const projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
@@ -209,7 +209,7 @@ async function setup(previewUrl, _clean) {
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
-    const syncProject = await setupProject(previewUrl, projectName, projectDir);
+    const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
     await transpile(projectDir, previewUrl);
     return {projectDir, syncProject};
 }
@@ -264,9 +264,9 @@ function watchForPlatformChanges(callBack) {
     }, 5000);
 }
 
-async function runWeb(previewUrl, clean) {
+async function runWeb(previewUrl, clean, authToken) {
     try {
-        const {projectDir, syncProject} = await setup(previewUrl, clean);
+        const {projectDir, syncProject} = await setup(previewUrl, clean, authToken);
         let isExpoStarted = false;
         watchProjectChanges(previewUrl, () => {
             const startTime = Date.now();

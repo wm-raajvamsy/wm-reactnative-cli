@@ -158,7 +158,7 @@ async function transpile(projectDir, previewUrl) {
     }
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
-    const config = require(configJSONFile);
+    const config = fs.readJSONSync(configJSONFile);
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
     } else {
@@ -226,7 +226,7 @@ function getExpoProjectDir(projectDir) {
     return `${projectDir}/target/generated-expo-app`;
 }
 
-async function setup(previewUrl, _clean) {
+async function setup(previewUrl, _clean, authToken) {
     const projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
@@ -234,7 +234,7 @@ async function setup(previewUrl, _clean) {
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
-    const syncProject = await setupProject(previewUrl, projectName, projectDir);
+    const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
     await transpile(projectDir, previewUrl);
     return {projectDir, syncProject};
 }
@@ -298,9 +298,9 @@ function watchForPlatformChanges(callBack) {
     }, 5000);
 }
 
-async function runExpo(previewUrl, clean) {
+async function runExpo(previewUrl, clean, authToken) {
     try {
-        const {projectDir, syncProject} = await setup(previewUrl, clean);
+        const {projectDir, syncProject} = await setup(previewUrl, clean, authToken);
 
         await installDependencies(projectDir);
         if (!isWebPreview) {
@@ -409,9 +409,9 @@ async function runNative(previewUrl, platform, clean) {
 }
 
 module.exports = {
-    runESBuildWebPreview: (previewUrl, clean) => {
+    runESBuildWebPreview: (previewUrl, clean, authToken) => {
         isWebPreview = true;
-        runExpo(previewUrl, clean);
+        runExpo(previewUrl, clean, authToken);
     },
     runExpo: runExpo,
     runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),

@@ -220,9 +220,12 @@ async function checkAuthCookie(config) {
     return true;
 }
 
-async function setup(previewUrl, projectName) {
+async function setup(previewUrl, projectName, authToken) {
+    if (authToken) {
+        authToken = 'auth_cookie=' + authToken;
+    }
     const config = {
-        authCookie : global.localStorage.getItem(STORE_KEY) || '',
+        authCookie : authToken || global.localStorage.getItem(STORE_KEY) || '',
         baseUrl: new URL(previewUrl).origin,
         appPreviewUrl: previewUrl,
         projectName: projectName
@@ -232,13 +235,13 @@ async function setup(previewUrl, projectName) {
         //console.log(`Need to login to Studio (${config.baseUrl}). \n Please enter your Studio credentails.`);
         //config.authCookie = await authenticateWithUserNameAndPassword(config);
         config.authCookie = await authenticateWithToken(config, true);
-        global.localStorage.setItem(STORE_KEY, config.authCookie)
     }
+    global.localStorage.setItem(STORE_KEY, config.authCookie);
     return config;
 }
 
-async function setupProject(previewUrl, projectName, toDir) {
-    const config = await setup(previewUrl, projectName);
+async function setupProject(previewUrl, projectName, toDir, authToken) {
+    const config = await setup(previewUrl, projectName, authToken);
     const projectId = await findProjectId(config);
     await downloadProject(projectId, config, toDir);
     return () => pullChanges(projectId, config, toDir);

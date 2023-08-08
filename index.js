@@ -189,10 +189,13 @@ const args = require('yargs')
                 if (args.clean) {
                     localStorage.clear();
                 }
+                const splits = args.previewUrl.split('#');
+                args.previewUrl = splits[0];
+                const authToken = splits[1];
                 if (args.esbuild) {
-                    runESBuildWebPreview(args.previewUrl, args.clean);
+                    runESBuildWebPreview(args.previewUrl, args.clean, authToken);
                 } else {
-                    runWeb(args.previewUrl, args.clean);
+                    runWeb(args.previewUrl, args.clean, authToken);
                 }
         }).command('android <previewUrl>',
             'launches React Native app in a Android device.',
