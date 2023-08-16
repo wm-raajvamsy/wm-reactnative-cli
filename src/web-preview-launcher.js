@@ -27,7 +27,9 @@ function launchServiceProxy(projectDir, previewUrl) {
             let tUrl = req.url;
             if (req.url === '/' || (!req.url.startsWith('/_/'))) {
                 tUrl = `http://localhost:${webPreviewPort}${req.url}`;
-                req.pipe(request(tUrl)).pipe(res);
+                req.pipe(request(tUrl, function(error, res, body){
+                    console.log(error);
+                })).pipe(res);
             } else {
                 req.url = req.url.substring(2);
                 proxy.web(req, res, {

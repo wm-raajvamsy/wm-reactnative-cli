@@ -366,6 +366,7 @@ async function runNative(previewUrl, platform, clean) {
 
         await installDependencies(projectDir);
         updateReanimatedPlugin(projectDir);
+        launchServiceProxy(projectDir, previewUrl);
         await exec('npx', ['expo','prebuild'], {
             cwd: getExpoProjectDir(projectDir)
         });
