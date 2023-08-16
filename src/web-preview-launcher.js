@@ -28,7 +28,7 @@ function launchServiceProxy(projectDir, previewUrl) {
             if (req.url === '/' || (!req.url.startsWith('/_/'))) {
                 tUrl = `http://localhost:${webPreviewPort}${req.url}`;
                 req.pipe(request(tUrl, function(error, res, body){
-                    console.log(error);
+                    // console.log(error);
                 })).pipe(res);
             } else {
                 req.url = req.url.substring(2);
@@ -154,6 +154,9 @@ async function getCodeGenPath(projectDir) {
             });
         }
     }
+    await readAndReplaceFileContent(`${codegen}/src/profiles/expo-preview.profile.js`, (content) => {
+        return content.replace('copyResources: true', 'copyResources: false');
+    });
 }
 
 async function installDependencies(projectDir) {
