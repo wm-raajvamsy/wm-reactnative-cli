@@ -28,7 +28,7 @@ function launchServiceProxy(projectDir, previewUrl) {
             if (req.url === '/' || (!req.url.startsWith('/_/'))) {
                 tUrl = `http://localhost:${webPreviewPort}${req.url}`;
                 req.pipe(request(tUrl, function(error, res, body){
-                    // console.log(error);
+                    //error && console.log(error);
                 })).pipe(res);
             } else {
                 req.url = req.url.substring(2);
@@ -122,6 +122,7 @@ async function updateForWebPreview(projectDir) {
             return JSON.stringify(appJson, null, 4);
         });
     } else {
+        package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
         package.devDependencies['esbuild'] = '^0.15.15';
@@ -165,9 +166,6 @@ async function installDependencies(projectDir) {
         return;
     }
     await exec('npm', ['install'], {
-        cwd: expoDir
-    });
-    await exec('npm', ['install', '@expo/webpack-config@^0.17.2'], {
         cwd: expoDir
     });
     await exec('node', ['./esbuild/esbuild.script.js', '--prepare-lib'], {
