@@ -127,6 +127,9 @@ async function updatePackageJsonFile(path) {
     if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
         jsonData['dependencies']['expo-file-system'] = '15.2.2'
     }
+    if(isWebPreview){
+        jsonData['dependencies']['react-native-svg'] = '13.4.0';
+    }
     fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
     logger.info({
         'label': loggerLabel,
