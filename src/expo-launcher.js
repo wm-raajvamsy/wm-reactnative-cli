@@ -17,6 +17,7 @@ const { setupProject } = require('./project-sync.service');
 //const openTerminal =  require('open-terminal').default;
 const webPreviewPort = 19005;
 const proxyPort = 19009;
+let barcodePort = 19000;
 const proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
@@ -91,7 +92,7 @@ function launchServiceProxy(projectDir, previewUrl) {
 function launchToolServer() {
     const app = express();
     const port = 19002;
-    const url = `exp://${getIpAddress()}:19000/`;
+    const url = `exp://${getIpAddress()}:${barcodePort}/`;
     app.use(express.static(__dirname + '/../tools-site'));
     app.get("/", (req, res) => {
         const template = fs.readFileSync(__dirname+ '/../tools-site/index.html.template', {
@@ -309,9 +310,13 @@ async function runExpo(previewUrl, clean, authToken) {
         if (!isWebPreview) {
             updateReanimatedPlugin(projectDir);
         }
-        if (isWebPreview) {
-            launchServiceProxy(projectDir, previewUrl);
-        } else {
+        const packageFile = `${getExpoProjectDir(projectDir)}/package.json`;
+        const package = JSON.parse(fs.readFileSync(packageFile, {
+            encoding: 'utf-8'
+        }));
+        barcodePort = package['dependencies']['expo'] === '48.0.18' ? 19000:8081;
+        launchServiceProxy(projectDir, previewUrl);
+        if (!isWebPreview) {
             launchExpo(projectDir);
         }
         watchProjectChanges(previewUrl, () => {
