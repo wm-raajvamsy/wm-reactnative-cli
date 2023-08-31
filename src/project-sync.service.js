@@ -90,6 +90,7 @@ async function downloadProject(projectId, config, projectDir) {
         }
         else{
             await unzip(tempFile, tempDir);
+            fs.rmdir(projectDir, { recursive: true, force: true });
             await exec('git', ['clone', "-b", "master", tempDir, projectDir]);
         }
         fs.rmdir(tempDir, { recursive: true, force: true });
