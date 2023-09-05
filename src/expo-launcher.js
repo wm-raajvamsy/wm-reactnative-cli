@@ -17,6 +17,7 @@ const { setupProject } = require('./project-sync.service');
 //const openTerminal =  require('open-terminal').default;
 const webPreviewPort = 19005;
 const proxyPort = 19009;
+let barcodePort = 19000;
 const proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
@@ -91,7 +92,7 @@ function launchServiceProxy(projectDir, previewUrl) {
 function launchToolServer() {
     const app = express();
     const port = 19002;
-    const url = `exp://${getIpAddress()}:19000/`;
+    const url = `exp://${getIpAddress()}:${barcodePort}/`;
     app.use(express.static(__dirname + '/../tools-site'));
     app.get("/", (req, res) => {
         const template = fs.readFileSync(__dirname+ '/../tools-site/index.html.template', {
@@ -127,6 +128,9 @@ async function updatePackageJsonFile(path) {
     if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
         jsonData['dependencies']['expo-file-system'] = '15.2.2'
     }
+    if(isWebPreview){
+        jsonData['dependencies']['react-native-svg'] = '13.4.0';
+    }
     fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
     logger.info({
         'label': loggerLabel,
@@ -158,7 +162,7 @@ async function transpile(projectDir, previewUrl) {
     }
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
-    const config = require(configJSONFile);
+    const config = fs.readJSONSync(configJSONFile);
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
     } else {
@@ -223,10 +227,10 @@ function getExpoProjectDir(projectDir) {
     if (isWebPreview) {
         return `${projectDir}/target/generated-rn-web-app`;
     }
-    return `${projectDir}/generated-rn-app`;
+    return `${projectDir}/target/generated-expo-app`;
 }
 
-async function setup(previewUrl, _clean) {
+async function setup(previewUrl, _clean, authToken) {
     const projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
@@ -234,7 +238,7 @@ async function setup(previewUrl, _clean) {
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
-    const syncProject = await setupProject(previewUrl, projectName, projectDir);
+    const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
     await transpile(projectDir, previewUrl);
     return {projectDir, syncProject};
 }
@@ -298,17 +302,21 @@ function watchForPlatformChanges(callBack) {
     }, 5000);
 }
 
-async function runExpo(previewUrl, clean) {
+async function runExpo(previewUrl, clean, authToken) {
     try {
-        const {projectDir, syncProject} = await setup(previewUrl, clean);
+        const {projectDir, syncProject} = await setup(previewUrl, clean, authToken);
 
         await installDependencies(projectDir);
         if (!isWebPreview) {
             updateReanimatedPlugin(projectDir);
         }
-        if (isWebPreview) {
-            launchServiceProxy(projectDir, previewUrl);
-        } else {
+        const packageFile = `${getExpoProjectDir(projectDir)}/package.json`;
+        const package = JSON.parse(fs.readFileSync(packageFile, {
+            encoding: 'utf-8'
+        }));
+        barcodePort = package['dependencies']['expo'] === '48.0.18' ? 19000:8081;
+        launchServiceProxy(projectDir, previewUrl);
+        if (!isWebPreview) {
             launchExpo(projectDir);
         }
         watchProjectChanges(previewUrl, () => {
@@ -366,6 +374,7 @@ async function runNative(previewUrl, platform, clean) {
 
         await installDependencies(projectDir);
         updateReanimatedPlugin(projectDir);
+        launchServiceProxy(projectDir, previewUrl);
         await exec('npx', ['expo','prebuild'], {
             cwd: getExpoProjectDir(projectDir)
         });
@@ -409,9 +418,9 @@ async function runNative(previewUrl, platform, clean) {
 }
 
 module.exports = {
-    runESBuildWebPreview: (previewUrl, clean) => {
+    runESBuildWebPreview: (previewUrl, clean, authToken) => {
         isWebPreview = true;
-        runExpo(previewUrl, clean);
+        runExpo(previewUrl, clean, authToken);
     },
     runExpo: runExpo,
     runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),
