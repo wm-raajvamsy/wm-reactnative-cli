@@ -122,6 +122,7 @@ async function updateForWebPreview(projectDir) {
             return JSON.stringify(appJson, null, 4);
         });
     } else {
+        webPreviewPort = 8081;
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
@@ -181,6 +182,14 @@ async function installDependencies(projectDir) {
     readAndReplaceFileContent(`${nodeModulesDir}/core/base.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/advanced/carousel/carousel.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/input/rating/rating.component.js`, (c) => c.replace(/\?\?/g, '||'));
+    readAndReplaceFileContent(`${expoDir}/node_modules/expo-camera/build/useWebQRScanner.js`, (c) => {
+        if (c.indexOf('@koale/useworker') > 0) {
+            return fs.readFileSync(`${__dirname}/../templates/expo-camera-patch/useWebQRScanner.js`, {
+                encoding: 'utf-8'
+            })
+        }
+        return c;
+    });
 }
 
 function clean(path) {
@@ -250,6 +259,10 @@ function watchForPlatformChanges(callBack) {
         }
         if (fs.existsSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`)) {
             fs.unlinkSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`);
+            doBuild = true;
+        }
+        if (fs.existsSync(`${codegen}/wavemaker-ui-variables/dist/new-build`)) {
+            fs.unlinkSync(`${codegen}/wavemaker-ui-variables/dist/new-build`);
             doBuild = true;
         }
         if (doBuild && callBack) {

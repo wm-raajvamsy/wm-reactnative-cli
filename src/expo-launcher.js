@@ -287,6 +287,10 @@ function watchForPlatformChanges(callBack) {
             fs.unlinkSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`);
             doBuild = true;
         }
+        if (fs.existsSync(`${codegen}/wavemaker-ui-variables/dist/new-build`)) {
+            fs.unlinkSync(`${codegen}/wavemaker-ui-variables/dist/new-build`);
+            doBuild = true;
+        }
         if (doBuild && callBack) {
             console.log('\n\n\n')
             logger.info({

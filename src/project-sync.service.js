@@ -90,10 +90,10 @@ async function downloadProject(projectId, config, projectDir) {
         }
         else{
             await unzip(tempFile, tempDir);
-            fs.rmdir(projectDir, { recursive: true, force: true });
+            fs.rmSync(projectDir, { recursive: true, force: true });
             await exec('git', ['clone', "-b", "master", tempDir, projectDir]);
         }
-        fs.rmdir(tempDir, { recursive: true, force: true });
+        fs.rmSync(tempDir, { recursive: true, force: true });
     }
     logger.info({
         label: loggerLabel,
@@ -159,7 +159,7 @@ async function pullChanges(projectId, config, projectDir) {
         await gitResetAndPull(tempDir, projectDir);
         fs.unlink(tempFile);
     }
-    fs.rmdir(tempDir, { recursive: true, force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true });
 }
 
 function copyContentsRecursiveSync(src, dest) {
