@@ -69,7 +69,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     });
 }
 
-async function transpile(projectDir, previewUrl) {
+async function transpile(projectDir, previewUrl, incrementalBuild) {
     codegen || await getCodeGenPath(projectDir);
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
@@ -77,7 +77,8 @@ async function transpile(projectDir, previewUrl) {
     config.serverPath = `${proxyUrl}/_`;
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     await exec('node',
-        [codegen + '/index.js', 'transpile', '--profile="expo-preview"', '--autoClean=false',
+        [codegen + '/index.js', 'transpile', '--profile="expo-preview"',
+            '--autoClean=false', `--incrementalBuild=${!!incrementalBuild}`,
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {
@@ -294,7 +295,7 @@ async function runWeb(previewUrl, clean, authToken) {
                 });
             })
             .then(() => {
-                return transpile(projectDir, previewUrl).then(() => {
+                return transpile(projectDir, previewUrl, true).then(() => {
                     if (!isExpoStarted) {
                         isExpoStarted = true;
                         launchServiceProxy(projectDir, previewUrl);

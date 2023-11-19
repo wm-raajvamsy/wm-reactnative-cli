@@ -138,7 +138,7 @@ async function updatePackageJsonFile(path) {
     });
 }
 
-async function transpile(projectDir, previewUrl) {
+async function transpile(projectDir, previewUrl, incrementalBuild) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
@@ -172,6 +172,7 @@ async function transpile(projectDir, previewUrl) {
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
     await exec('node',
         [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
+            `--incrementalBuild=${!!incrementalBuild}`,
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {
@@ -332,7 +333,7 @@ async function runExpo(previewUrl, clean, authToken) {
                     message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
                 });
             })
-            .then(() => transpile(projectDir, previewUrl))
+            .then(() => transpile(projectDir, previewUrl, true))
             .then(() => {
                 logger.info({
                     label: loggerLabel,
