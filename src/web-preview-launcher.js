@@ -76,9 +76,12 @@ async function transpile(projectDir, previewUrl, incrementalBuild) {
     const config = fs.readJSONSync(configJSONFile);
     config.serverPath = `${proxyUrl}/_`;
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
+    let profile = 'expo-preview';
+    if(fs.existsSync(`${codegen}/src/profiles/expo-web-preview.profile.js`)){
+        profile = 'expo-web-preview';
+    }
     await exec('node',
-        [codegen + '/index.js', 'transpile', '--profile="expo-preview"',
-            '--autoClean=false', `--incrementalBuild=${!!incrementalBuild}`,
+        [codegen + '/index.js', 'transpile', `--profile="${profile}"`, '--autoClean=false',
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {
