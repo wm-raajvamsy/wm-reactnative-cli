@@ -336,8 +336,11 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
             cwd: config.src + 'ios',
             env: env
         });
-
-        const packageType = await getPackageType(args.iProvisioningFile);
+        
+        let packageType = 'development';
+        if (args.buildType === 'release') {
+            packageType = await getPackageType(args.iProvisioningFile);
+        }
         const status = await createExportPList(config.src + 'ios', {
             appId: config.metaData.id,
             provisioningProfile: PROVISIONING_UUID,
