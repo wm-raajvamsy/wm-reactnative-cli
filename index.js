@@ -230,6 +230,10 @@ const args = require('yargs')
         yargs.positional('previewUrl', {
             describe: 'Pereview Url of the React Native app.',
             type: 'string'
+        }).option('useProxy', {
+            describe: 'If set to true then all preview requests are routed through a internal proxy server.',
+            default: false,
+            type: 'boolean'
         }).option('clean', {
             describe: 'If set to true then all existing folders are removed.',
             default: false,
@@ -239,7 +243,7 @@ const args = require('yargs')
         if (args.clean) {
             localStorage.clear();
         }
-        sync(args.previewUrl, args.clean);
+        sync(args.previewUrl, args.clean, args.useProxy);
     })
     .help('h')
     .alias('h', 'help').argv;

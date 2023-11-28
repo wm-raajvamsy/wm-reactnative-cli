@@ -25,6 +25,7 @@ function installGlobalNpmPackage(package) {
 }
 
 var isWebPreview = false;
+var useProxy = false;
 
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
@@ -53,6 +54,7 @@ function launchServiceProxy(projectDir, previewUrl) {
                     target: previewUrl,
                     xfwd: false,
                     changeOrigin: true,
+                    secure: false,
                     cookiePathRewrite: {
                         "*": ""
                     }
@@ -165,8 +167,10 @@ async function transpile(projectDir, previewUrl, incrementalBuild) {
     const config = fs.readJSONSync(configJSONFile);
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
-    } else {
+    } else if (useProxy) {
         config.serverPath = `http://${getIpAddress()}:19009/`;
+    } else {
+        config.serverPath = previewUrl;
     }
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
@@ -320,7 +324,9 @@ async function runExpo(previewUrl, clean, authToken) {
             encoding: 'utf-8'
         }));
         barcodePort = package['dependencies']['expo'] === '48.0.18' ? 19000:8081;
-        launchServiceProxy(projectDir, previewUrl);
+        if (useProxy) {
+            launchServiceProxy(projectDir, previewUrl);
+        }
         if (!isWebPreview) {
             launchExpo(projectDir);
         }
@@ -353,7 +359,9 @@ async function runExpo(previewUrl, clean, authToken) {
 async function sync(previewUrl, clean) {
     const {projectDir, syncProject} = await setup(previewUrl, clean);
     await installDependencies(projectDir);
-    launchServiceProxy(projectDir, previewUrl);
+    if (useProxy) {
+        launchServiceProxy(projectDir, previewUrl);
+    }
     watchProjectChanges(previewUrl, () => {
         const startTime = Date.now();
         syncProject()
@@ -362,7 +370,7 @@ async function sync(previewUrl, clean) {
                 label: loggerLabel,
                 message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
             });
-        }).then(() => transpile(projectDir, previewUrl))
+        }).then(() => transpile(projectDir, previewUrl, true))
         .then(() => {
             logger.info({
                 label: loggerLabel,
@@ -379,7 +387,9 @@ async function runNative(previewUrl, platform, clean) {
 
         await installDependencies(projectDir);
         updateReanimatedPlugin(projectDir);
-        launchServiceProxy(projectDir, previewUrl);
+        if (useProxy) {
+            launchServiceProxy(projectDir, previewUrl);
+        }
         await exec('npx', ['expo','prebuild'], {
             cwd: getExpoProjectDir(projectDir)
         });
@@ -430,5 +440,8 @@ module.exports = {
     runExpo: runExpo,
     runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),
     runIos: (previewUrl, clean) => runNative(previewUrl, 'ios', clean),
-    sync: (previewUrl, clean) => sync(previewUrl, clean)
+    sync: (previewUrl, clean, _useProxy) => {
+        useProxy = _useProxy;
+        return sync(previewUrl, clean)
+    }
 };
