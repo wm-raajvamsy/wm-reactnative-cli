@@ -3,6 +3,8 @@ const logger = require('./logger');
 const config = require('./config');
 const plist = require('plist');
 const xcode = require('xcode');
+const path = require('path');
+const pparse = require('./mobileprovision-parse');
 const {
     exec
 } = require('./exec');
@@ -165,10 +167,10 @@ async function invokeiosBuild(args) {
         const username = await getUsername();
         const keychainName = `wm-reactnative-${random}.keychain`;
         const provisionuuid =  await extractUUID(provisionalFile);
-        let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
+        let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes -legacy | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
             shell: true
         });
-        codeSignIdentity = codeSignIdentity[1];
+        codeSignIdentity = codeSignIdentity[0];
         let useModernBuildSystem = 'YES';
         logger.info({
             label: loggerLabel,
@@ -219,31 +221,47 @@ async function invokeiosBuild(args) {
         }
 }
 
-
-async function updateInfoPlist(appName, PROVISIONING_UUID) {
-    return await new Promise(resolve => {
-        try {
-        const appId = config.metaData.id;
-
-        const infoPlistpath = config.src + 'ios/build/' + appName +'.xcarchive/Info.plist';
-         fs.readFile(infoPlistpath, async function (err, data) {
-            const content = data.toString().replace('<key>ApplicationProperties</key>',
-                `<key>compileBitcode</key>
-            <true/>
-            <key>provisioningProfiles</key>
-            <dict>
-                <key>${appId}</key>
-                <string>${PROVISIONING_UUID}</string>
-            </dict>
-            <key>ApplicationProperties</key>
-            `);
-            await fs.writeFile(infoPlistpath, Buffer.from(content));
-            resolve('success');
-        });
-    } catch (e) {
-        resolve('error', e);
+async function getPackageType(provisionalFile) {
+    const data = await pparse(provisionalFile);
+    //data.
+    if (data.type === 'appstore') {
+        return 'app-store';
     }
-    });
+    if (data.type === 'inhouse') {
+        return 'enterprise';
+    } 
+    if (data.type === 'adhoc') {
+        return 'ad-hoc';
+    }
+    throw new Error('Not able find the type of provisioning file.');
+}
+
+async function createExportPList(projectPath, {
+    appId,
+    provisioningProfile,
+    teamId,
+    packageType,
+    codeSignIdentity,
+    buildType
+}) {
+    const exportOptions = {
+        compileBitcode: true,
+        provisioningProfiles : { [appId]: String(provisioningProfile) },
+        signingCertificate: codeSignIdentity,
+        signingStyle: 'manual',
+        teamId: teamId,
+        method: packageType,
+        testFlightInternalTestingOnly: false
+    };
+    if (buildType === 'development') {
+        exportOptions.stripSwiftSymbols = false;
+    } else {
+        exportOptions.stripSwiftSymbols = true;
+    }
+    const exportOptionsPlist = plist.build(exportOptions);
+    const exportOptionsPath = path.join(projectPath, 'exportOptions.plist');
+    fs.writeFileSync(exportOptionsPath, exportOptionsPlist, 'utf-8');
+    return 'success'
 }
 
 const removePushNotifications = (projectDir, projectName) => {
@@ -319,12 +337,21 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
             env: env
         });
 
-        const status = await updateInfoPlist(fileName, PROVISIONING_UUID);
+        const packageType = await getPackageType(args.iProvisioningFile);
+        const status = await createExportPList(config.src + 'ios', {
+            appId: config.metaData.id,
+            provisioningProfile: PROVISIONING_UUID,
+            teamId: DEVELOPMENT_TEAM,
+            packageType: packageType,
+            codeSignIdentity: CODE_SIGN_IDENTITY_VAL,
+            buildType: args.buildType
+        });
+
         if (status === 'success') {
             await exec('xcodebuild', [
                 '-exportArchive',
                 '-archivePath', 'build/' + fileName + '.xcarchive',
-                '-exportOptionsPlist', 'build/' + fileName + '.xcarchive/Info.plist', 
+                '-exportOptionsPlist', './exportOptions.plist', 
                 '-exportPath',
                 'build'], {
                 cwd: config.src + 'ios',

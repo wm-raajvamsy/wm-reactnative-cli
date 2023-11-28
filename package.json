@@ -22,6 +22,8 @@
     "plist": "^3.0.2",
     "prompt": "^1.0.0",
     "properties-reader": "^2.2.0",
+    "htmlencode": "0.0.4",
+    "shell-argument-escape": "^0.1.2",
     "qs": "^6.10.3",
     "request": "^2.88.2",
     "rimraf": "^2.7.1",
