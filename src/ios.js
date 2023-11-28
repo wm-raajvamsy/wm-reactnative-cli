@@ -167,10 +167,10 @@ async function invokeiosBuild(args) {
         const username = await getUsername();
         const keychainName = `wm-reactnative-${random}.keychain`;
         const provisionuuid =  await extractUUID(provisionalFile);
-        let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes -legacy | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
+        let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
             shell: true
         });
-        codeSignIdentity = codeSignIdentity[0];
+        codeSignIdentity = codeSignIdentity[1];
         let useModernBuildSystem = 'YES';
         logger.info({
             label: loggerLabel,
