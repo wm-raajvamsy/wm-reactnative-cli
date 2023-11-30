@@ -140,7 +140,7 @@ async function updatePackageJsonFile(path) {
     });
 }
 
-async function transpile(projectDir, previewUrl, incrementalBuild) {
+async function transpile(projectDir, previewUrl) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
@@ -176,7 +176,6 @@ async function transpile(projectDir, previewUrl, incrementalBuild) {
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
     await exec('node',
         [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
-            `--incrementalBuild=${!!incrementalBuild}`,
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {

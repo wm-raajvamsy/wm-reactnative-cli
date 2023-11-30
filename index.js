@@ -184,7 +184,11 @@ const args = require('yargs')
                 runExpo(args.previewUrl, args.web, args.clean)
         }).command('web-preview <previewUrl>',
             'launches React Native app in web browser.',
-            yargs => {},
+            yargs => {
+                yargs.option('proxyHost', {
+                    describe: 'If provided, this will be used as the host name to the proxy server. By default, ip address is used as host name.'
+                })
+            },
             (args) => {
                 if (args.clean) {
                     localStorage.clear();
@@ -195,7 +199,7 @@ const args = require('yargs')
                 if (args.esbuild) {
                     runESBuildWebPreview(args.previewUrl, args.clean, authToken);
                 } else {
-                    runWeb(args.previewUrl, args.clean, authToken);
+                    runWeb(args.previewUrl, args.clean, authToken, args.proxyHost);
                 }
         }).command('android <previewUrl>',
             'launches React Native app in a Android device.',

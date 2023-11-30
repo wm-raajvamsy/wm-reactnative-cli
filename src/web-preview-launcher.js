@@ -15,7 +15,7 @@ const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
 let webPreviewPort = 19006;
 const proxyPort = 19009;
-const proxyUrl = `http://localhost:${proxyPort}`;
+let proxyUrl = `http://localhost:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 let codegen = '';
 
@@ -69,7 +69,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     });
 }
 
-async function transpile(projectDir, previewUrl, incrementalBuild) {
+async function transpile(projectDir, previewUrl) {
     codegen || await getCodeGenPath(projectDir);
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
@@ -325,5 +325,9 @@ async function runWeb(previewUrl, clean, authToken) {
 }
 
 module.exports = {
-    runWeb: runWeb
+    runWeb: (previewUrl, clean, authToken, proxyHost) => {
+        proxyHost = proxyHost || 'localhost';
+        proxyUrl = `http://${proxyHost}:${proxyPort}`;
+        return runWeb(previewUrl, clean, authToken);
+    }
 };
