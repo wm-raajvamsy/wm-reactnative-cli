@@ -69,7 +69,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     });
 }
 
-async function transpile(projectDir, previewUrl) {
+async function transpile(projectDir, previewUrl, incremental) {
     codegen || await getCodeGenPath(projectDir);
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
@@ -82,6 +82,7 @@ async function transpile(projectDir, previewUrl) {
     }
     await exec('node',
         [codegen + '/index.js', 'transpile', `--profile="${profile}"`, '--autoClean=false',
+        `--incrementalBuild=${!!incremental}`,
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {
@@ -226,7 +227,7 @@ async function setup(previewUrl, _clean, authToken) {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
     const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
-    await transpile(projectDir, previewUrl);
+    await transpile(projectDir, previewUrl, false);
     return {projectDir, syncProject};
 }
 
@@ -315,7 +316,7 @@ async function runWeb(previewUrl, clean, authToken) {
                 });
             });
         });
-        watchForPlatformChanges(() => transpile(projectDir, previewUrl));
+        watchForPlatformChanges(() => transpile(projectDir, previewUrl, false));
     } catch(e) {
         logger.error({
             label: loggerLabel,
