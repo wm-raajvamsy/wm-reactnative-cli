@@ -160,7 +160,10 @@ async function transpile(projectDir, previewUrl, incremental) {
             await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
                 cwd: temp
             });
-        }
+        }     
+        await readAndReplaceFileContent(`${codegen}/src/profiles/expo-preview.profile.js`, (content) => {
+            return content.replace('copyResources: false', 'copyResources: true');
+        });
     }
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
