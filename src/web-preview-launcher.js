@@ -106,10 +106,8 @@ async function updateForWebPreview(projectDir) {
     }));
     if (package['dependencies']['expo'] === '48.0.18') {
         webPreviewPort = 19000;
-        package.devDependencies['esbuild'] = '^0.15.15';
         package.devDependencies['fs-extra'] = '^10.0.0';
         package.devDependencies['@babel/plugin-proposal-export-namespace-from'] = '7.18.9';
-        fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
         await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => {
             if (content.indexOf('@babel/plugin-proposal-export-namespace-from') < 0) {
                 content = content.replace(`'react-native-reanimated/plugin',`, `
@@ -131,9 +129,7 @@ async function updateForWebPreview(projectDir) {
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
-        package.devDependencies['esbuild'] = '^0.15.15';
         package.devDependencies['fs-extra'] = '^10.0.0';
-        fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
         readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => 
             content.replace(`'react-native-reanimated/plugin',`, ''));
     }
@@ -174,15 +170,6 @@ async function installDependencies(projectDir) {
     await exec('npm', ['install'], {
         cwd: expoDir
     });
-    await exec('node', ['./esbuild/esbuild.script.js', '--prepare-lib'], {
-        cwd: expoDir
-    });
-    fs.copySync(
-        `${expoDir}/esbuild/node_modules`, 
-        `${expoDir}/node_modules`,
-        {
-        overwrite: true
-        });
     const nodeModulesDir = `${expoDir}/node_modules/@wavemaker/app-rn-runtime`;
     readAndReplaceFileContent(`${nodeModulesDir}/core/base.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/advanced/carousel/carousel.component.js`, (c) => c.replace(/\?\?/g, '||'));

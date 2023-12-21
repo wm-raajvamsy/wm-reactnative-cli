@@ -1,13 +1,10 @@
 const { isWindowsOS } = require('./utils');
 const { exec } = require('./exec');
+const extract = require('extract-zip');
 
 async function unzip(src, dest) {
     if ( isWindowsOS() ) {
-        await exec('powershell', [
-            '-command', 
-            "& {&'Expand-Archive' " + src + " -DestinationPath " + dest + " -Force }"], {
-                log: false
-            });
+        await extract(src, { dir: dest});
     } else {
         await exec('unzip', [
             '-o', src, '-d', dest
