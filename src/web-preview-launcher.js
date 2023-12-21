@@ -108,6 +108,8 @@ async function updateForWebPreview(projectDir) {
         webPreviewPort = 19000;
         package.devDependencies['fs-extra'] = '^10.0.0';
         package.devDependencies['@babel/plugin-proposal-export-namespace-from'] = '7.18.9';
+        delete package.devDependencies['esbuild'];
+        delete package.devDependencies['esbuild-plugin-resolve'];
         fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
         await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => {
             if (content.indexOf('@babel/plugin-proposal-export-namespace-from') < 0) {
@@ -131,6 +133,8 @@ async function updateForWebPreview(projectDir) {
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
         package.devDependencies['fs-extra'] = '^10.0.0';
+        delete package.devDependencies['esbuild'];
+        delete package.devDependencies['esbuild-plugin-resolve'];
         fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
         readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => 
             content.replace(`'react-native-reanimated/plugin',`, ''));
