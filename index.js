@@ -187,6 +187,9 @@ const args = require('yargs')
             yargs => {
                 yargs.option('proxyHost', {
                     describe: 'If provided, this will be used as the host name to the proxy server. By default, ip address is used as host name.'
+                }).option('basePath', {
+                    describe: 'Base Path at which the web preview has to be server.',
+                    default: '/rn-bundle/',
                 })
             },
             (args) => {
@@ -199,7 +202,7 @@ const args = require('yargs')
                 if (args.esbuild) {
                     runESBuildWebPreview(args.previewUrl, args.clean, authToken);
                 } else {
-                    runWeb(args.previewUrl, args.clean, authToken, args.proxyHost);
+                    runWeb(args.previewUrl, args.clean, authToken, args.proxyHost, args.basePath);
                 }
         }).command('android <previewUrl>',
             'launches React Native app in a Android device.',

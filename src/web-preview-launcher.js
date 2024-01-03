@@ -18,21 +18,30 @@ const proxyPort = 19009;
 let proxyUrl = `http://localhost:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 let codegen = '';
-
+let basePath = '/rn-bundle/';
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
     const wmProjectDir = getWmProjectDir(projectDir);
     http.createServer(function (req, res) {
         try {
-            let tUrl = req.url;
-            if (req.url === '/' || (!req.url.startsWith('/_/'))) {
-                tUrl = `http://localhost:${webPreviewPort}${req.url}`;
-                req.headers.origin = `http://localhost:${webPreviewPort}`;
-                req.pipe(request(tUrl, function(error, res, body){
-                    //error && console.log(error);
-                })).pipe(res);
-            } else {
-                req.url = req.url.substring(2);
+            let tUrl = `http://localhost:${webPreviewPort}/${req.url}`;
+            if (req.url.endsWith('index.html')) {
+                axios.get(tUrl.replace(basePath, '')).then(body => {
+                    res.end(body.data
+                        .replace('/index.bundle', `./index.bundle`));
+                });
+                return;
+            }
+            if (req.url.startsWith(basePath)) {
+                tUrl = tUrl.replace(basePath, '');
+            }
+            if (req.url === '/') {
+                res.writeHead(302, {'Location': `${basePath}index.html`});
+                res.end();
+            } else if (req.url.startsWith(basePath + '_/_')
+                || req.url.startsWith(basePath + '_')) {
+                req.url = req.url.replace(basePath + '_/_', '')
+                            .replace(basePath + '_', '');
                 proxy.web(req, res, {
                     target: previewUrl,
                     secure: false,
@@ -42,7 +51,12 @@ function launchServiceProxy(projectDir, previewUrl) {
                         "*": ""
                     }
                 });
-            }
+            } else {
+                req.headers.origin = `http://localhost:${webPreviewPort}`;
+                req.pipe(request(tUrl, function(error, res, body){
+                    //error && console.log(error);
+                })).pipe(res);
+            } 
         } catch(e) {
             res.writeHead(500);
             console.error(e);
@@ -75,7 +89,7 @@ async function transpile(projectDir, previewUrl, incremental) {
     const wmProjectDir = getWmProjectDir(projectDir);
     const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
     const config = fs.readJSONSync(configJSONFile);
-    config.serverPath = `${proxyUrl}/_`;
+    config.serverPath = `./_`;
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     let profile = 'expo-preview';
     if(fs.existsSync(`${codegen}/src/profiles/expo-web-preview.profile.js`)){
@@ -200,6 +214,9 @@ async function installDependencies(projectDir) {
             })
         }
         return c;
+    });
+    await readAndReplaceFileContent(`${expoDir}/node_modules/expo-font/build/ExpoFontLoader.web.js`, (content)=>{
+        return content.replace('src: url(${resource.uri});', 'src: url(.${resource.uri});');
     });
 }
 
@@ -332,9 +349,10 @@ async function runWeb(previewUrl, clean, authToken) {
 }
 
 module.exports = {
-    runWeb: (previewUrl, clean, authToken, proxyHost) => {
+    runWeb: (previewUrl, clean, authToken, proxyHost, _basePath) => {
         proxyHost = proxyHost || 'localhost';
         proxyUrl = `http://${proxyHost}:${proxyPort}`;
+        basePath = _basePath;
         return runWeb(previewUrl, clean, authToken);
     }
 };
