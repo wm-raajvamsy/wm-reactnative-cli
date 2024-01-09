@@ -190,6 +190,9 @@ async function installDependencies(projectDir) {
         overwrite: true
         });
     const nodeModulesDir = `${expoDir}/node_modules/@wavemaker/app-rn-runtime`;
+    // To remove openBrowser()
+    readAndReplaceFileContent(`${expoDir}/node_modules/open/index.js`, (c) => c.replace("const subprocess", 'return;\n\nconst subprocess'));
+    readAndReplaceFileContent(`${expoDir}/node_modules/@expo/cli/build/src/utils/open.js`, (c) => c.replace('if (process.platform !== "win32")', 'return;\n\n if (process.platform !== "win32")'));
     readAndReplaceFileContent(`${nodeModulesDir}/core/base.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/advanced/carousel/carousel.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/input/rating/rating.component.js`, (c) => c.replace(/\?\?/g, '||'));
