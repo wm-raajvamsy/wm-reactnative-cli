@@ -28,7 +28,7 @@ function launchServiceProxy(projectDir, previewUrl) {
             if (req.url.endsWith('index.html')) {
                 axios.get(tUrl.replace(basePath, '')).then(body => {
                     res.end(body.data
-                        .replace('/index.bundle', `./index.bundle`));
+                        .replace('/index.bundle?', `./index.bundle?minify=true&`));
                 });
                 return;
             }
@@ -53,6 +53,15 @@ function launchServiceProxy(projectDir, previewUrl) {
                 });
             } else {
                 req.headers.origin = `http://localhost:${webPreviewPort}`;
+                const url = req.url;
+                if (url.indexOf('/index.bundle') > 0 && req.headers &&req.headers.referer) {
+                    let sourceMap = req.headers.referer.replace('/index.html', '') + '/index.map';
+                    if (url.indexOf('?') > 0) {
+                        sourceMap += url.substring(url.indexOf('?'));
+                    }
+                    res.setHeader('SourceMap', sourceMap);
+                }
+                res.setHeader('Content-Location', url);
                 req.pipe(request(tUrl, function(error, res, body){
                     //error && console.log(error);
                 })).pipe(res);
