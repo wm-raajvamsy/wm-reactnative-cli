@@ -93,42 +93,42 @@ function updateAppJsonFile(src) {
     args.src = directories.src;
     args.dest = directories.dest;
  
-  config.metaData = await readWmRNConfig(args.src);
+    config.metaData = await readWmRNConfig(args.src);
 
-  if (config.metaData.icon.src.startsWith('resources')) {
-    config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
-  }
-  if (config.metaData.splash.src.startsWith('resources')) {
-    config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
-  }
+    if (config.metaData.icon.src.startsWith('resources')) {
+        config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
+    }
+    if (config.metaData.splash.src.startsWith('resources')) {
+        config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
+    }
 
-  config.platform = args.platform;
-
-    if (args.dest) {
+     config.platform = args.platform;
+     
+     if (args.dest) {
         args.dest = path.resolve(args.dest) + '/';
-    }
+}
 
-  await prepareProject(args);
-   if (args.targetPhase === 'PREPARE')
-   {
-    return;
-   }
-   if (!args.autoEject) {
-    const response = await showConfirmation(
-      'Would you like to eject the expo project (yes/no) ?'
-    );
-    if (response !== 'y' && response !== 'yes') {
-      process.exit();
+    await prepareProject(args);
+    if (args.targetPhase === 'PREPARE')
+    {
+        return;
     }
-  }
-  let response;
-  if (args.dest) {
-    if (!config.metaData.ejected) {
-      response = await ejectProject(args);
+    if (!args.autoEject) {
+        const response = await showConfirmation(
+            'Would you like to eject the expo project (yes/no) ?'
+        );
+        if (response !== 'y' && response !== 'yes') {
+            process.exit();
+        }
     }
-  } else {
-    response = await ejectProject(args);
-  }
+    let response;
+    if (args.dest) {
+        if (!config.metaData.ejected) {
+            response = await ejectProject(args);
+        }
+    } else {
+        response = await ejectProject(args);
+    }
 
     if (response && response.errors) {
         return response;
@@ -322,45 +322,48 @@ async function writeWmRNConfig(content) {
 // src points to unzip proj
 async function ejectProject(args) {
     try {
-        await exec('npx', ['expo', 'prebuild'], ['--platform', args.platform || 'android'],  {
-        cwd: config.src,
+        await exec('npx', ['expo','prebuild'], {
+            cwd: config.src
         });
-        logger.info({
-        label: loggerLabel,
-        message: 'expo eject succeeded',
-        });
-        if (args.localrnruntimepath) {
-        const linkFolderPath =
-            config.src + 'node_modules/@wavemaker/app-rn-runtime';
-        // using removeSync when target is directory and unlinkSync works when target is file.
-        if (fs.existsSync(linkFolderPath)) {
-            fs.removeSync(linkFolderPath);
-        }
-        await fs.mkdirsSync(linkFolderPath);
-        await fs.copySync(args.localrnruntimepath, linkFolderPath);
         logger.info({
             label: loggerLabel,
-            message: 'copied the app-rn-runtime folder',
+            message: 'expo eject succeeded',
         });
+        if (args.localrnruntimepath) {
+            const linkFolderPath =
+            config.src + 'node_modules/@wavemaker/app-rn-runtime';
+            // using removeSync when target is directory and unlinkSync works when target is file.
+            if (fs.existsSync(linkFolderPath)) {
+                fs.removeSync(linkFolderPath);
+            }
+            await fs.mkdirsSync(linkFolderPath);
+            await fs.copySync(args.localrnruntimepath, linkFolderPath);
+            logger.info({
+                label: loggerLabel,
+                message: 'copied the app-rn-runtime folder',
+            });
         }
-  } catch (e) {
-    logger.error({
-      label: loggerLabel,
-      message: args.platform + ' eject project Failed. Due to :' + e,
-    });
-    return { errors: e, success: false };
-  }
+    } catch (e) {
+        logger.error({
+            label: loggerLabel,
+            message: args.platform + ' eject project Failed. Due to :' + e,
+        });
+        return { errors: e, success: false };
+    }
 }
 
 async function prepareProject(args) {
-  try {
-    config.src = args.dest;
-    logger.info({
-      label: loggerLabel,
-      message: 'destination folder where app is build at ' + args.dest,
-    });
-    config.platform = args.platform;
-    config.buildType = args.buildType;
+    try {
+        config.src = args.dest;
+        logger.info({
+            label: loggerLabel,
+            message: 'destination folder where app is build at ' + args.dest,
+        });
+        if (!args.platform) {
+            args.platform = 'android';
+        }
+        config.platform = args.platform;
+        config.buildType = args.buildType;
 
         if (args.platform !== 'android') {
             VERSIONS.JAVA = '1.8.0';
@@ -457,12 +460,12 @@ module.exports = {
     },
     build: build,
     prepareProject: async (args) => {
-    args.targetPhase = 'PREPARE';
-    args.platform= 'expo';
-    await build(args);
-    logger.info({
-        label: loggerLabel,
-        message: `Project is prepared at : ${args.dest}.`,
-      });
-  },
+        args.targetPhase = 'PREPARE';
+        args.platform= 'expo';
+        await build(args);
+        logger.info({
+            label: loggerLabel,
+            message: `Project is prepared at : ${args.dest}.`,
+        });
+    },
 };

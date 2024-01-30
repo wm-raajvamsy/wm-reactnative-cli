@@ -148,7 +148,6 @@ const args = require('yargs')
             })
             .option('dest', {
               alias: 'dest',
-            //   default: './',
               describe:
                 'dest folder where the react native project will be extracted to',
               type: 'string',
