@@ -45,6 +45,7 @@ async function downloadFile(res, tempFile){
 }
 
 async function downloadProject(projectId, config, projectDir) {
+    try {
     const start = Date.now();
     logger.info({label: loggerLabel,message: 'downloading the project...'});
     const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
@@ -100,6 +101,12 @@ async function downloadProject(projectId, config, projectDir) {
         message: `downloaded the project in (${Date.now() - start} ms).`
     });
     fs.unlink(tempFile);
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: e+` The download of the project has encountered an issue. Please ensure that the preview is active.`
+        });
+    }
 }
 
 async function gitResetAndPull(tempDir, projectDir){
@@ -109,6 +116,7 @@ async function gitResetAndPull(tempDir, projectDir){
 }
 
 async function pullChanges(projectId, config, projectDir) {
+    try {
     const output = await exec('git', ['rev-parse', 'HEAD'], {
         cwd: projectDir
     });
@@ -160,6 +168,12 @@ async function pullChanges(projectId, config, projectDir) {
         fs.unlink(tempFile);
     }
     fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: e+` The attempt to execute "git pull" was unsuccessful. Please verify your connections.`
+        });
+    }
 }
 
 function copyContentsRecursiveSync(src, dest) {
@@ -210,6 +224,7 @@ async function authenticateWithUserNameAndPassword(config) {
 }
 
 async function authenticateWithToken(config, showHelp) {
+    try {
     if (showHelp) {
         console.log('***************************************************************************************');
         console.log('* Please open the below url in the browser, where your WaveMaker studio is opened.    *');
@@ -225,6 +240,12 @@ async function authenticateWithToken(config, showHelp) {
         return authenticateWithToken(config);
     }
     return 'auth_cookie='+cookie;
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: e+` Your authentication has failed. Please proceed with a valid token.`
+        });
+    }
 }
 
 function getUserCredentials() {

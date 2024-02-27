@@ -104,6 +104,7 @@ async function transpile(projectDir, previewUrl, incremental) {
     if(fs.existsSync(`${codegen}/src/profiles/expo-web-preview.profile.js`)){
         profile = 'expo-web-preview';
     }
+    try {
     await exec('node',
         [codegen + '/index.js', 'transpile', `--profile="${profile}"`, '--autoClean=false',
         `--incrementalBuild=${!!incremental}`,
@@ -115,15 +116,22 @@ async function transpile(projectDir, previewUrl, incremental) {
                 'if (false && isSslPinningAvailable()) {');
         });
     }
+    } catch (e) {
+        logger.error({
+            label: loggerLabel,
+            message: "Code Error: Kindly review and address the necessary corrections."
+        });
+    }   
     logger.info({
         label: loggerLabel,
         message: `generated expo project at ${getExpoProjectDir(projectDir)}`
     });
-    await updateForWebPreview(projectDir);
+    await updateForWebPreview(projectDir); // Incorporating customized patches for any packages, if necessary.
     await installDependencies(projectDir);
 }
 
 async function updateForWebPreview(projectDir) {
+    try {
     const packageFile = `${getExpoProjectDir(projectDir)}/package.json`;
     const package = JSON.parse(fs.readFileSync(packageFile, {
         encoding: 'utf-8'
@@ -167,6 +175,12 @@ async function updateForWebPreview(projectDir) {
     await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/esbuild/esbuild.script.js`, (content)=>{
         return content.replace('const esbuild', '//const esbuild').replace('const resolve', '//const resolve');
     });
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: `The package update has failed. ${e}`
+        });
+    }
 }
 
 async function getCodeGenPath(projectDir) {
@@ -196,10 +210,15 @@ async function getCodeGenPath(projectDir) {
 }
 
 async function installDependencies(projectDir) {
+    try {
     const expoDir = getExpoProjectDir(projectDir);
     if (fs.existsSync(`${expoDir}/node_modules/expo`)) {
         return;
     }
+    logger.info({
+        label: loggerLabel,
+        message: "Dependency installation process initiated..."
+      });
     await exec('npm', ['install'], {
         cwd: expoDir
     });
@@ -230,6 +249,12 @@ async function installDependencies(projectDir) {
     await readAndReplaceFileContent(`${expoDir}/node_modules/expo-font/build/ExpoFontLoader.web.js`, (content)=>{
         return content.replace('src: url(${resource.uri});', 'src: url(.${resource.uri});');
     });
+    } catch (e) {
+        logger.error({
+            label: loggerLabel,
+            message: e+' Encountered an error while installing dependencies.'
+          });
+    }
 }
 
 function clean(path) {
@@ -321,6 +346,10 @@ function watchForPlatformChanges(callBack) {
 }
 
 async function runWeb(previewUrl, clean, authToken) {
+    logger.info({
+        label: loggerLabel,
+        message: `Local preview processing has started. Please ensure that the preview is active.`
+    });
     try {
         const {projectDir, syncProject} = await setup(previewUrl, clean, authToken);
         let isExpoStarted = false;
