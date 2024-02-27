@@ -341,7 +341,20 @@ async function invokeAndroidBuild(args) {
             success: false
         }
     }
-
+    await readAndReplaceFileContent(
+        `${args.dest}/App.js`,
+        (content) => {
+            return content + `
+            // Remove cookies with no expiry time set
+            (function() {
+                try {
+                    require('@react-native-cookies/cookies').removeSessionCookies();
+                } catch(e) {
+                    console.error(e);
+                }
+            }());
+            `
+        });    
     updateJSEnginePreference();
     const appName = config.metaData.name;
     updateSettingsGradleFile(appName);

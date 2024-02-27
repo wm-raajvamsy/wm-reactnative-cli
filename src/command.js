@@ -47,6 +47,9 @@ async function updatePackageJsonFile(path) {
         if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
             jsonData['dependencies']['expo-file-system'] = '15.2.2'
         }
+        if (config.platform === 'android') {
+            jsonData['dependencies']['@react-native-cookies/cookies'] = '6.2.1';
+        }
         fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
         logger.info({
             'label': loggerLabel,
