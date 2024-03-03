@@ -16,9 +16,9 @@ const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
 //const openTerminal =  require('open-terminal').default;
 const webPreviewPort = 19005;
-const proxyPort = 19009;
+let proxyPort = 19009;
 let barcodePort = 19000;
-const proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
+let proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
@@ -30,19 +30,21 @@ var useProxy = false;
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
     const wmProjectDir = getWmProjectDir(projectDir);
-    const app = express();
-    app.use('/rn-bundle', express.static(wmProjectDir + '/rn-bundle'));
-    app.get("*", (req, res) => {
-        res.send(`
-        <html>
-            <head>
-                <script type="text/javascript">
-                    location.href="/rn-bundle/index.html"
-                </script>
-            </head>
-        </html>`);
-    });
-    app.listen(webPreviewPort);
+    if (isWebPreview) {
+        const app = express();
+        app.use('/rn-bundle', express.static(wmProjectDir + '/rn-bundle'));
+        app.get("*", (req, res) => {
+            res.send(`
+            <html>
+                <head>
+                    <script type="text/javascript">
+                        location.href="/rn-bundle/index.html"
+                    </script>
+                </head>
+            </html>`);
+        });
+        app.listen(webPreviewPort);
+    }
     http.createServer(function (req, res) {
         try {
             let tUrl = req.url;
@@ -165,22 +167,22 @@ async function transpile(projectDir, previewUrl, incremental) {
             return content.replace('copyResources: false', 'copyResources: true');
         });
     }
-    const wmProjectDir = getWmProjectDir(projectDir);
-    const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
-    const config = fs.readJSONSync(configJSONFile);
-    if (isWebPreview) {
-        config.serverPath = `${proxyUrl}/_`;
-    } else if (useProxy) {
-        config.serverPath = `http://${getIpAddress()}:19009/`;
-    } else {
-        config.serverPath = previewUrl;
-    }
-    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     const profile = isWebPreview ? 'web-preview' : 'expo-preview';
     await exec('node',
         [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
             `--incrementalBuild=${!!incremental}`,
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
+    const expoProjectDir = getExpoProjectDir(projectDir);
+    const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
+    const config = fs.readJSONSync(configJSONFile);
+    if (isWebPreview) {
+        config.serverPath = `${proxyUrl}/_`;
+    } else if (useProxy) {
+        config.serverPath = `http://${getIpAddress()}:${proxyPort}/`;
+    } else {
+        config.serverPath = previewUrl;
+    }
+    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {
         await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/App.js`, content => {
@@ -361,6 +363,8 @@ async function runExpo(previewUrl, clean, authToken) {
 
 async function sync(previewUrl, clean) {
     const {projectDir, syncProject} = await setup(previewUrl, clean);
+    proxyPort = 19007;
+    proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
     await installDependencies(projectDir);
     if (useProxy) {
         launchServiceProxy(projectDir, previewUrl);

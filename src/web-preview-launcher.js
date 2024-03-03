@@ -95,11 +95,7 @@ function launchServiceProxy(projectDir, previewUrl) {
 
 async function transpile(projectDir, previewUrl, incremental) {
     codegen || await getCodeGenPath(projectDir);
-    const wmProjectDir = getWmProjectDir(projectDir);
-    const configJSONFile = `${wmProjectDir}/wm_rn_config.json`;
-    const config = fs.readJSONSync(configJSONFile);
-    config.serverPath = `./_`;
-    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
+    const expoProjectDir = getExpoProjectDir(projectDir);
     let profile = 'expo-preview';
     if(fs.existsSync(`${codegen}/src/profiles/expo-web-preview.profile.js`)){
         profile = 'expo-web-preview';
@@ -109,6 +105,10 @@ async function transpile(projectDir, previewUrl, incremental) {
         [codegen + '/index.js', 'transpile', `--profile="${profile}"`, '--autoClean=false',
         `--incrementalBuild=${!!incremental}`,
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
+    const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
+    const config = fs.readJSONSync(configJSONFile);
+    config.serverPath = `./_`;
+    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     // TODO: iOS app showing blank screen
     if (!(config.sslPinning && config.sslPinning.enabled)) {
         await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/App.js`, content => {
@@ -160,7 +160,7 @@ async function updateForWebPreview(projectDir) {
             return JSON.stringify(appJson, null, 4);
         });
     } else {
-        webPreviewPort = 8081;
+        webPreviewPort = 8088;
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
@@ -367,7 +367,7 @@ async function runWeb(previewUrl, clean, authToken) {
                     if (!isExpoStarted) {
                         isExpoStarted = true;
                         launchServiceProxy(projectDir, previewUrl);
-                        return exec('npx', ['expo', 'start', '--web', '--offline'], {
+                        return exec('npx', ['expo', 'start', '--web', '--offline', `--port=${webPreviewPort}`], {
                             cwd: getExpoProjectDir(projectDir)
                         });
                     }
