@@ -160,7 +160,6 @@ async function updateForWebPreview(projectDir) {
             return JSON.stringify(appJson, null, 4);
         });
     } else {
-        webPreviewPort = 8088;
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
