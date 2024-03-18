@@ -10,7 +10,8 @@ const httpProxy = require('http-proxy');
 const {
     exec
 } = require('./exec');
-const { readAndReplaceFileContent } = require('./utils');
+const { readAndReplaceFileContent, isWindowsOS } = require('./utils');
+const path = require('path');
 const {VERSIONS, hasValidExpoVersion} = require('./requirements');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
@@ -20,6 +21,7 @@ let proxyPort = 19009;
 let barcodePort = 19000;
 let proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
+let projectName = '';
 function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
 }
@@ -237,16 +239,30 @@ function getExpoProjectDir(projectDir) {
     if (isWebPreview) {
         return `${projectDir}/target/generated-rn-web-app`;
     }
+    if(isWindowsOS()){
+        return path.resolve(`${global.rootDir}/${projectName}-expo`);
+    }
     return `${projectDir}/target/generated-expo-app`;
 }
 
 async function setup(previewUrl, _clean, authToken) {
-    const projectName = await getProjectName(previewUrl);
+    projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
         clean(projectDir);
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
+    }
+    if(isWindowsOS()){
+        const expoProjectDir = `${projectDir}/target/generated-expo-app/`;
+        const symlinkDir = path.resolve(`${global.rootDir}/${projectName}-expo`);
+        fs.mkdirSync(expoProjectDir, {recursive: true});
+        if(fs.existsSync(symlinkDir)){
+            rimraf.sync(symlinkDir, { recursive: true, force: true});
+        }
+        await exec('ln', ['-s', expoProjectDir, `${global.rootDir}/${projectName}-expo`]);
+        logger.info({label: "Symlink Directory:", message: symlinkDir});
+        rimraf.sync(expoProjectDir, { recursive: true, force: true});
     }
     const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
     await transpile(projectDir, previewUrl, false);

@@ -254,6 +254,18 @@ async function setupBuildDirectory(src, dest, platform) {
         return;
     }
     fs.mkdirsSync(dest);
+    if (isWindowsOS()) {
+        const homedir = global.rootDir || require('os').homedir();
+        fs.mkdirSync(`${homedir}/build`, {recursive: true})
+        const symlinkDir = `${homedir}/build/${metadata.name}-${platform === 'android' ? 'a' : 'i'}`;
+        if(fs.existsSync(symlinkDir)){
+            fs.removeSync(`${symlinkDir}`, { recursive: true, force: true });
+        }
+        await exec('ln', ['-s', dest, `${symlinkDir}`]);
+        logger.info({label:"SymLink Directory", message: symlinkDir});
+        fs.removeSync(dest, {recursive: true, force: true});
+        dest = symlinkDir+'/';
+    }
     fs.copySync(src, dest);
     const logDirectory = dest + 'output/logs/';
     fs.mkdirSync(logDirectory, {

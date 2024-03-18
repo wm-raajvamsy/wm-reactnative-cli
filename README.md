@@ -10,6 +10,28 @@ The main goal of wm-reactnative-cli is to simplify generation of APK or IPA for 
 npm install -g @wavemaker/wm-reactnative-cli
 ~~~
 
+### Adding Environment Variable
+
+#### For Windows
+
+-   Go to System Setting and Select Environment Variables.
+
+    ![Windows System settings](./assets/EnvironmentVariable.png)
+
+-   Select New Variable under the System section and add `WM_REACTNATIVE_CLI` and its respective path.
+
+    ![CLI System Variable](./assets/CLI-EnvironmentVariable.png)
+
+#### For Linux/MAC
+
+-   use nano ~/.bashrc then add the following at the end of the file (after updating the paths) and save it.
+
+~~~
+export WM_REACTNATIVE_CLI="$HOME/cli/"
+~~~
+
+**_NOTE:_** To avoid cmake errors caused due to long paths in Windows, we suggest making the cli path shorter using this variable
+
 ## Android Build
 
 ### Requirements
@@ -27,10 +49,10 @@ npm install -g @wavemaker/wm-reactnative-cli
 
 #### For Windows
 
--   Go to System Setting and Select Environment Varialbes.
+-   Go to System Setting and Select Environment Variables.
     
     ![Windows System settings](./assets/EnvironmentVariable.png)
--   Select New Variable under System section and add variables and their respective paths.
+-   Select New Variable under the System section and add variables and their respective paths.
     ![New System Variable](./assets/EnvironmentVariable1.png)
 
 #### For Linux/MAC
