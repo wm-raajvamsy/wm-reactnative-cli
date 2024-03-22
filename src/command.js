@@ -12,8 +12,9 @@ const {
     exec
 } = require('./exec');
 
- const config = require('./config');
- const ios = require('./ios');
+const crypto = require('crypto');
+const config = require('./config');
+const ios = require('./ios');
 const { resolve } = require('path');
 const { isWindowsOS, readAndReplaceFileContent } = require('./utils');
 const loggerLabel = 'wm-reactnative-cli';
@@ -245,6 +246,10 @@ async function setupBuildDirectory(src, dest, platform) {
         }
     }
     dest = dest || await getDefaultDestination(metadata.id, platform);
+    if(isWindowsOS()){
+        const buildDirHash = crypto.createHash("shake256", { outputLength: 8 }).update(dest).digest("hex");
+        dest = path.resolve(`${global.rootDir}/wm-build/` + buildDirHash + "/");
+    }
     dest = path.resolve(dest)  + '/';
     if(src === dest) {
         logger.error({
@@ -254,18 +259,6 @@ async function setupBuildDirectory(src, dest, platform) {
         return;
     }
     fs.mkdirsSync(dest);
-    if (isWindowsOS()) {
-        const homedir = global.rootDir || require('os').homedir();
-        fs.mkdirSync(`${homedir}/build`, {recursive: true})
-        const symlinkDir = `${homedir}/build/${metadata.name}-${platform === 'android' ? 'a' : 'i'}`;
-        if(fs.existsSync(symlinkDir)){
-            fs.removeSync(`${symlinkDir}`, { recursive: true, force: true });
-        }
-        await exec('ln', ['-s', dest, `${symlinkDir}`]);
-        logger.info({label:"SymLink Directory", message: symlinkDir});
-        fs.removeSync(dest, {recursive: true, force: true});
-        dest = symlinkDir+'/';
-    }
     fs.copySync(src, dest);
     const logDirectory = dest + 'output/logs/';
     fs.mkdirSync(logDirectory, {
