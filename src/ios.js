@@ -316,6 +316,9 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
                 return content.replace(
                     'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
                     'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
+                    .replace(
+                        'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];',
+                        'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];');
             });
         } else {
             _buildType = 'Release';
