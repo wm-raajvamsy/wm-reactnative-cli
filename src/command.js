@@ -48,6 +48,11 @@ async function updatePackageJsonFile(path) {
         if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
             jsonData['dependencies']['expo-file-system'] = '15.2.2'
         }
+        if (!jsonData["resolutions"] || !jsonData["resolutions"]['expo-application']) {
+            const resolutions = jsonData["resolutions"] || {};
+            resolutions['expo-application'] = '5.8.4';
+            jsonData["resolutions"] = resolutions;
+        }
         if (config.platform === 'android') {
             jsonData['dependencies']['@react-native-cookies/cookies'] = '6.2.1';
         }
