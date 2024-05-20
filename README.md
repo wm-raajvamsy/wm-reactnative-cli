@@ -116,6 +116,7 @@ wm-reactnative build android "/path/to/src" \
 -   Install wm-reactnative-cli (npm install -g @wavemaker/wm-reactnative-cli)
 -   For development build, development certificate and development provisioning file are required.
 -   For production build, distribution certificate and distribution provisioning file are required.
+-   Use Libre SSL (brew install libressl). Make sure openssl (openssl version) should use Libre ssl.
 
 **NOTE:** Before building an app, please make sure that neither iPhone nor iPad is not connected to Mac.
 
@@ -132,7 +133,6 @@ wm-reactnative build ios <src_dir> [additional_arguments]
 |**\-\-iCertificate**|Absolute path of P12 certificate location|
 |**\-\-iCertificatePassword**|Password to unlock the certificate.|
 |**\-\-iProvisioningFile**|Absolute path of provisioning file|
-|**\-\-iCodeSigningIdentity**|Signing certificate name in keychain access|
 |**\-\-buildType**|**DEFAULT:** development<bR>development or production <br>Use ‘production’ with an AppStore distribution certificate.|
 
 
@@ -144,7 +144,6 @@ wm-reactnative build ios "/path/to/src" \
 --iCertificate="/path/to/distribution.p12" \
 --iCertificatePassword="unlock_password" \
 --iProvisioningFile="/path/to/profile.mobileprovision" \
---iCodeSigningIdentity="certificate name in keychain access" \
 --buildType="production"
 ~~~
 
