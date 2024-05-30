@@ -22,7 +22,7 @@ async function findProjectId(config) {
             cookie: config.authCookie
         }})).data;
     const project = projectList.filter(p => p.displayName === config.projectName)
-        .filter(p => (config.appPreviewUrl.indexOf(p.name + "_" + p.vcsBranchId) >= 0));
+        .filter(p => (config.appPreviewUrl.endsWith(p.name + "_" + p.vcsBranchId)));
     if (project && project.length) {
         WM_PLATFORM_VERSION = project[0].platformVersion;
         return project[0].studioProjectId;
