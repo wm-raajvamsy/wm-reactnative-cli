@@ -24,16 +24,18 @@ function launchServiceProxy(projectDir, previewUrl) {
     const wmProjectDir = getWmProjectDir(projectDir);
     http.createServer(function (req, res) {
         try {
-            let tUrl = `http://localhost:${webPreviewPort}/${req.url}`;
+            let tUrl = req.url;
+            if (req.url.startsWith(basePath)) {
+                tUrl = tUrl.replace(basePath, '');
+            }
+            tUrl = (tUrl.startsWith('/') ?  '' : '/') + tUrl;
+            tUrl = `http://localhost:${webPreviewPort}${tUrl}`;
             if (req.url.endsWith('index.html')) {
-                axios.get(tUrl.replace(basePath, '')).then(body => {
+                axios.get(tUrl).then(body => {
                     res.end(body.data
                         .replace('/index.bundle?', `./index.bundle?minify=true&`));
                 });
                 return;
-            }
-            if (req.url.startsWith(basePath)) {
-                tUrl = tUrl.replace(basePath, '');
             }
             if (req.url === '/') {
                 res.writeHead(302, {'Location': `${basePath}index.html`});
@@ -159,7 +161,7 @@ async function updateForWebPreview(projectDir) {
             }
             return JSON.stringify(appJson, null, 4);
         });
-    } else {
+    } else if (package['dependencies']['expo'] === '49.0.7') {
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
@@ -169,6 +171,13 @@ async function updateForWebPreview(projectDir) {
         fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
         readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => 
             content.replace(`'react-native-reanimated/plugin',`, ''));
+    } else {
+        package.dependencies['react-native-svg'] = '13.4.0';
+        package.dependencies['victory'] = '^36.5.3';
+        package.devDependencies['fs-extra'] = '^10.0.0';
+        delete package.devDependencies['esbuild'];
+        delete package.devDependencies['esbuild-plugin-resolve'];
+        fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
     }
     fs.writeFileSync(packageFile, JSON.stringify(package, null, 4));
     await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/esbuild/esbuild.script.js`, (content)=>{
