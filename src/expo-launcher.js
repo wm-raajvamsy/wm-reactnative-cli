@@ -288,25 +288,35 @@ function updateReanimatedPlugin(projectDir) {
     fs.writeFileSync(path, content);
 }
 
+function getLastModifiedTime(path) {
+    if (fs.existsSync(path)) {
+        return fs.lstatSync(path).mtime;
+    }
+    return 0;
+}
+let lastKnownModifiedTime = {
+    'rn-runtime': 0,
+    'rn-codegen': 0,
+    'ui-variables': 0,
+};
+
 function watchForPlatformChanges(callBack) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (!codegen) {
         return;
     }
     setTimeout(() => {
-        let doBuild = false;
-        if (fs.existsSync(`${codegen}/wavemaker-rn-runtime/dist/new-build`)) {
-            fs.unlinkSync(`${codegen}/wavemaker-rn-runtime/dist/new-build`);
-            doBuild = true;
-        }
-        if (fs.existsSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`)) {
-            fs.unlinkSync(`${codegen}/wavemaker-rn-codegen/dist/new-build`);
-            doBuild = true;
-        }
-        if (fs.existsSync(`${codegen}/wavemaker-ui-variables/dist/new-build`)) {
-            fs.unlinkSync(`${codegen}/wavemaker-ui-variables/dist/new-build`);
-            doBuild = true;
-        }
+        let currentModifiedTime = {
+            'rn-runtime': getLastModifiedTime(`${codegen}/wavemaker-rn-runtime/dist/new-build`),
+            'rn-codegen': getLastModifiedTime(`${codegen}/wavemaker-rn-codegen/dist/new-build`),
+            'ui-variables': getLastModifiedTime(`${codegen}/wavemaker-ui-variables/dist/new-build`),
+        };
+        const doBuild = lastKnownModifiedTime['rn-runtime'] < currentModifiedTime['rn-runtime']
+                || lastKnownModifiedTime['rn-codegen'] < currentModifiedTime['rn-codegen']
+                || lastKnownModifiedTime['ui-variables'] < currentModifiedTime['ui-variables'];
+
+        lastKnownModifiedTime = currentModifiedTime;
+
         if (doBuild && callBack) {
             console.log('\n\n\n')
             logger.info({
