@@ -37,12 +37,11 @@ export WM_REACTNATIVE_CLI="$HOME/cli/"
 ### Requirements
 
 -   Linux or MAC or Windows
--   Node 14.x ([https://nodejs.org/en/blog/release/v14.15.1/](https://nodejs.org/en/download/))
+-   Node 18.x ([https://nodejs.org/en/blog/release/v14.15.1/](https://nodejs.org/en/download/))
 -   GIT ([https://git-scm.com/download](https://git-scm.com/download))
--   Java 11 ([https://openjdk.org/install/](https://openjdk.org/install/))
+-   Java 17 ([https://openjdk.org/install/](https://openjdk.org/install/))
 -   Yarn (npm install -g yarn)
--   Gradle 7 ([https://gradle.org/releases/](https://gradle.org/releases/))
--   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
+-   Gradle 8 ([https://gradle.org/releases/](https://gradle.org/releases/))
 -   Make sure JAVA_HOME, ANDROID_SDK and GRADLE_HOME are set in the environment variables and also in PATH.
 
 #### Adding Environment Variables
@@ -107,10 +106,9 @@ wm-reactnative build android "/path/to/src" \
 -   MAC machine
 -   Latest XCODE
 -   CocoaPods ([https://guides.cocoapods.org/using/getting-started.html#toc_3](https://guides.cocoapods.org/using/getting-started.html#toc_3))
--   Node 14.x ([https://nodejs.org/en/blog/release/v12.22.0/](https://nodejs.org/en/download/))
+-   Node 18.x ([https://nodejs.org/en/blog/release/v12.22.0/](https://nodejs.org/en/download/))
 -   GIT ([https://git-scm.com/download/mac](https://git-scm.com/download/mac))
 -   Yarn (npm install -g yarn)
--   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
 -   Apple developer or distribution P12 certificates
 -   Provisioning profile
 -   Install wm-reactnative-cli (npm install -g @wavemaker/wm-reactnative-cli)
