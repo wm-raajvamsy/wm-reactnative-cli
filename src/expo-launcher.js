@@ -281,11 +281,17 @@ async function watchProjectChanges(previewUrl, onChange, lastModifiedOn) {
 // expo android, ios are throwing errors with reanimated plugin
 // hence modifying the 2.8.0version and just adding chrome debugging fix to this.
 function updateReanimatedPlugin(projectDir) {
-    let path = getExpoProjectDir(projectDir);
-    path = path + '/node_modules/react-native-reanimated/src/reanimated2/NativeReanimated/NativeReanimated.ts';
-    let content = fs.readFileSync(path, 'utf-8');
-    content = content.replace(/global.__reanimatedModuleProxy === undefined/gm, `global.__reanimatedModuleProxy === undefined && native`);
-    fs.writeFileSync(path, content);
+    const packageFile = `${getExpoProjectDir(projectDir)}/package.json`;
+    const package = JSON.parse(fs.readFileSync(packageFile, {
+        encoding: 'utf-8'
+    }));
+    if (package['dependencies']['expo'] === '48.0.18' || package['dependencies']['expo'] === '49.0.7') {
+        let path = getExpoProjectDir(projectDir);
+        path = path + '/node_modules/react-native-reanimated/src/reanimated2/NativeReanimated/NativeReanimated.ts';
+        let content = fs.readFileSync(path, 'utf-8');
+        content = content.replace(/global.__reanimatedModuleProxy === undefined/gm, `global.__reanimatedModuleProxy === undefined && native`);
+        fs.writeFileSync(path, content);
+    }
 }
 
 function getLastModifiedTime(path) {
