@@ -11,17 +11,30 @@ const {
 const { runWeb } = require('./src/web-preview-launcher');
 const updateNotifier = require('update-notifier');
 const pkg = require('./package.json');
-const { canDoAndroidBuild, canDoIosBuild } = require('./src/requirements');
+const { canDoAndroidBuild, canDoIosBuild, showConfirmation } = require('./src/requirements');
 updateNotifier({
     pkg: pkg,
     updateCheckInterval : 60 * 60 * 1000
 }).notify({
 	defer: false
 });
+const prompt = require('prompt');
 
 global.rootDir = process.env.WM_REACTNATIVE_CLI || `${os.homedir()}/.wm-reactnative-cli`;
 global.localStorage = new LocalStorage(`${global.rootDir}/.store`);
 // src is the web react native project zip
+
+async function handleDeprecatedCommands(args) {
+    const syncCommand = `wm-reactnative sync ${args.previewUrl} ${args.clean ? '--clean' : ''} ${args.useProxy ? '--useProxy' : ''}`;
+    const response = await showConfirmation(
+        `Would you like to execute ${syncCommand} (yes/no) ?`
+    );
+    if (response !== 'y' && response !== 'yes') {
+        process.exit();
+    }
+    sync(args.previewUrl, args.clean, args.useProxy);
+}
+
 const args = require('yargs')
     .command('build', 'build the project to generate android and ios folders', yargs => {
             yargs.command('android [src] [options]', 'build for android', yargs => {
@@ -198,11 +211,13 @@ const args = require('yargs')
                     type: 'boolean'
                 });
             },
-            (args) => {
-                if (args.clean) {
-                    localStorage.clear();
-                }
-                runExpo(args.previewUrl, args.web, args.clean)
+            async (args) => {
+                console.log(`Command run expo is no longer supported, instead use sync command`);
+                await handleDeprecatedCommands(args)
+                // if (args.clean) {
+                //     localStorage.clear();
+                // }
+                // runExpo(args.previewUrl, args.web, args.clean)
         }).command('web-preview <previewUrl>',
             'launches React Native app in web browser.',
             yargs => {
@@ -229,22 +244,26 @@ const args = require('yargs')
             'launches React Native app in a Android device.',
             yargs => {},
             async (args) => {
-                if (args.clean) {
-                    localStorage.clear();
-                }
-                if (await canDoAndroidBuild()) {
-                    runAndroid(args.previewUrl, args.clean);
-                }
+                console.log(`Command run android is no longer supported, instead use sync command`);
+                await handleDeprecatedCommands(args);
+                // if (args.clean) {
+                //     localStorage.clear();
+                // }
+                // if (await canDoAndroidBuild()) {
+                //     runAndroid(args.previewUrl, args.clean);
+                // }
         }).command('ios <previewUrl>',
             'launches React Native app in a iOS device.',
             yargs => {},
             async (args) => {
-                if (args.clean) {
-                    localStorage.clear();
-                }
-                if (await canDoIosBuild()) {
-                    runIos(args.previewUrl, args.clean);
-                }
+                console.log(`Command run ios is no longer supported, instead use sync command`);
+                await handleDeprecatedCommands(args);
+                // if (args.clean) {
+                //     localStorage.clear();
+                // }
+                // if (await canDoIosBuild()) {
+                //     runIos(args.previewUrl, args.clean);
+                // }
         }).positional('previewUrl', {
             describe: 'Pereview Url of the React Native app.',
             type: 'string'

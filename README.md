@@ -58,11 +58,11 @@ export WM_REACTNATIVE_CLI="$HOME/cli/"
 
 -   use nano ~/.bashrc then add the following at the end of the file (after updating the paths) and save it.
 ~~~
-export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
+export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
 export ANDROID_HOME="/usr/lib/android-sdk"
 export ANDROID_SDK="/usr/lib/android-sdk"
 export ANDROID_SDK_ROOT="/usr/lib/android-sdk"
-export GRADLE_HOME="$HOME/gradle/gradle-7.5.1"
+export GRADLE_HOME="$HOME/gradle/gradle-8.2.1"
 ~~~
 
 ### Command
@@ -146,32 +146,14 @@ wm-reactnative build ios "/path/to/src" \
 ~~~
 
 
-## Run Expo
-
-### Requirements
-- Node 14.x
-- GIT ([https://git-scm.com/download](https://git-scm.com/download))
-- npm 7.20.x
-- Yarn (npm install -g yarn)
-- Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
-
-### Command
-
-wm-reactnative run expo <preview_url> [additional_arguments]
-
-|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
-|--|--|
-| **preview_url** | app preview url |
-|**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
-
 ## Run web-preview
 
 ### Requirements
-- Node 14.x
+- Node >= 18.16.1 
 - GIT ([https://git-scm.com/download](https://git-scm.com/download))
-- npm 7.20.x
+- npm 9.5.x
 - Yarn (npm install -g yarn)
-- Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
+- Expo cli (npm install -g expo-cli@latest)
 
 ### Command
 
@@ -182,50 +164,66 @@ wm-reactnative run web-preview <preview_url> [additional_arguments]
 | **preview_url** | app preview url |
 |**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
 
-## Run Android
-
--   Linux or MAC or Windows
--   Node 14.x ([https://nodejs.org/en/blog/release/v14.15.1/](https://nodejs.org/en/download/))
--   GIT ([https://git-scm.com/download](https://git-scm.com/download))
--   Java 11 ([https://openjdk.org/install/](https://openjdk.org/install/))
--   Yarn (npm install -g yarn)
--   Gradle 7 ([https://gradle.org/releases/](https://gradle.org/releases/))
--   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
--   Make sure JAVA_HOME, ANDROID_SDK and GRADLE_HOME are set in the environment variables and also in PATH.
-
-### Command
-
-wm-reactnative run android <preview_url> [additional_arguments]
-
-|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
-|--|--|
-| **preview_url** | app preview url |
-|**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
-
-
-## Run iOS
+## Sync
 
 ### Requirements
-
--   MAC machine
--   Latest XCODE
--   CocoaPods ([https://guides.cocoapods.org/using/getting-started.html#toc_3](https://guides.cocoapods.org/using/getting-started.html#toc_3))
--   Node 14.x ([https://nodejs.org/en/blog/release/v12.22.0/](https://nodejs.org/en/download/))
--   GIT ([https://git-scm.com/download/mac](https://git-scm.com/download/mac))
--   Yarn (npm install -g yarn)
--   Expo cli 5.4.4 (npm install -g expo-cli@5.4.4)
-
-
+- Node >= 18.16.1 
+- GIT ([https://git-scm.com/download](https://git-scm.com/download))
+- npm 9.5.x
+- Yarn (npm install -g yarn)
+- Expo cli (npm install -g expo-cli@latest)
 
 ### Command
 
-wm-reactnative run ios <preview_url> [additional_arguments]
+wm-reactnative sync <preview_url> [additional_arguments]
 
 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Argument**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| **Description** |
 |--|--|
 | **preview_url** | app preview url |
 |**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
 
+After the build is complete:
+
+- Locate the directory where the Expo app has been generated in command logs.
+- Use the cd command to navigate to the generated Expo app directory:
+~~~
+cd <path-to-generated-expo-app>
+~~~
+## Expo Preview
+### Start the Expo Metro bundler 
+
+~~~
+npm start
+~~~
+
+## React Native Preview
+
+Eject the Expo app to a React Native app by executing the below command (generate android and ios folders)
+~~~
+npx expo prebuild
+~~~
+
+
+### Start the React Native Metro bundler
+~~~
+npx react-native start
+~~~
+
+### Build and run the app on an Android device/emulator
+~~~
+npx react-native run-android
+~~~
+
+### Build and run the app on an iOS device/simulator
+~~~
+npx react-native run-ios
+~~~
+
+## Run Expo (Deprecated)
+
+## Run Android (Deprecated)
+
+## Run iOS (Deprecated)
 
 ## Additional Information
 
