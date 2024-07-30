@@ -18,6 +18,15 @@ async function readAndReplaceFileContent(path, writeFn) {
     });
 }
 
+function streamToString (stream) {
+    const chunks = [];
+    return new Promise((resolve, reject) => {
+      stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      stream.on('error', (err) => reject(err));
+      stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    })
+}
+
 async function iterateFiles(path, callBack) {
     if (fs.lstatSync(path).isDirectory()) {
         await Promise.all(fs.readdirSync(path).map((p) => iterateFiles(`${path}/${p}`, callBack)));
@@ -29,5 +38,6 @@ async function iterateFiles(path, callBack) {
 module.exports = {
     isWindowsOS: isWindowsOS,
     readAndReplaceFileContent: readAndReplaceFileContent,
-    iterateFiles: iterateFiles
+    iterateFiles: iterateFiles,
+    streamToString: streamToString
 };

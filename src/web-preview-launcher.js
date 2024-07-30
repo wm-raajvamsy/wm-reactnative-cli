@@ -10,7 +10,7 @@ const httpProxy = require('http-proxy');
 const {
     exec
 } = require('./exec');
-const { readAndReplaceFileContent } = require('./utils');
+const { readAndReplaceFileContent, streamToString } = require('./utils');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
 let webPreviewPort = 19006;
@@ -64,9 +64,17 @@ function launchServiceProxy(projectDir, previewUrl) {
                     res.setHeader('SourceMap', sourceMap);
                 }
                 res.setHeader('Content-Location', url);
-                req.pipe(request(tUrl, function(error, res, body){
-                    //error && console.log(error);
-                })).pipe(res);
+                if (url.indexOf('/index.bundle') > 0) {
+                    streamToString(request(tUrl)).then(content => {
+                        content = content.replace(/"\/assets\/\?unstable_path=/g, `"/${basePath}/assets/?unstable_path=`);
+                        res.write(content);
+                        res.end();
+                    });
+                } else {
+                    req.pipe(request(tUrl, function(error, res, body){
+                        //error && console.log(error);
+                    })).pipe(res);
+                }
             } 
         } catch(e) {
             res.writeHead(500);
