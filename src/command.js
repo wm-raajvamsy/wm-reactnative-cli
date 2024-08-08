@@ -58,6 +58,9 @@ async function updatePackageJsonFile(path) {
         if (!resolutions['axios']) {
             resolutions['axios'] = '1.6.8';
         }
+        if (jsonData['dependencies']['expo'] === '50.0.17') {
+            resolutions['metro'] = '0.80.9';
+        }
         jsonData["resolutions"] = resolutions;
         if (config.platform === 'android') {
             jsonData['dependencies']['@react-native-cookies/cookies'] = '6.2.1';
