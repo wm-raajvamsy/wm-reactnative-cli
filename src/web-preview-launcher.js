@@ -185,6 +185,7 @@ async function updateForWebPreview(projectDir) {
         package.devDependencies['fs-extra'] = '^10.0.0';
         delete package.devDependencies['esbuild'];
         delete package.devDependencies['esbuild-plugin-resolve'];
+        delete package.devDependencies['@expo/metro-config'];
         fs.copySync(`${codegen}/src/templates/project/esbuild`, `${getExpoProjectDir(projectDir)}/esbuild`);
     }
     fs.writeFileSync(packageFile, JSON.stringify(package, null, 4));
@@ -263,7 +264,12 @@ async function installDependencies(projectDir) {
         return c;
     });
     await readAndReplaceFileContent(`${expoDir}/node_modules/expo-font/build/ExpoFontLoader.web.js`, (content)=>{
-        return content.replace('src: url(${resource.uri});', 'src: url(.${resource.uri});');
+        return content.replace(/src\s*:\s*url\(\$\{resource\.uri\}\);/g, 'src:url(.${resource.uri});');
+    });
+    // https://github.com/expo/expo/issues/24273#issuecomment-2132297993
+    await readAndReplaceFileContent(`${expoDir}/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js`, (content)=>{
+        content = content.replace('getEnvPrelude(str)', '//getEnvPrelude(str)');
+        return content.replace('// process.env', '// process.env \n firstModule.output[0].data.code = firstModule.output[0].data.code + str;');
     });
     } catch (e) {
         logger.error({
