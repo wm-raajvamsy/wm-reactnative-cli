@@ -234,54 +234,86 @@ async function embed(args) {
         label: loggerLabel,
         message: 'transforming Native Android files.'
     });
-    await readAndReplaceFileContent(`${embedAndroidProject}/app/build.gradle`, 
-        // TODO: This is a workaround to get build passed. Need to find appropriate fix.
-        content => content.replace(/android[\s]{/, `project.ext.react = [
-            enableHermes: true
-        ];
-        android {`));
-            // fix for issue at https://github.com/facebook/react-native/issues/33926
-            //.replace(/(com\.google\.android\.material:material:([\d\.]*))/, 'com.google.android.material:material:1.6.0'));
-    logger.info({
-        label: loggerLabel,
-        message: 'Changed Native Android project.'
-    });
-    fs.copySync(`${rnAndroidProject}/app`, `${embedAndroidProject}/rnApp`);
-    fs.copySync(`${rnAndroidProject}/build.gradle`, `${embedAndroidProject}/rnApp/root.build.gradle`);
-    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.build.gradle`, (content) => {
-        return content + `\nallprojects {
-            configurations.all {
-                resolutionStrategy {
-                    force "com.facebook.react:react-native:" + REACT_NATIVE_VERSION
-                    force "androidx.annotation:annotation:1.4.0"
+
+    // NATIVE CHANGES
+
+    // settings.gradle changes
+    await readAndReplaceFileContent(`${embedAndroidProject}/settings.gradle`, (content) => {
+        content = content.replace(`dependencyResolutionManagement {
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+                repositories {
+                    google()
+                    mavenCentral()
                 }
-            }
-        }`;
+            }`, ``);
+        content = content.replace(`include ':app'`, `include ':app'\napply from:'./rnApp/root.settings.gradle'`);
+        return content;
     });
-    fs.copySync(`${rnAndroidProject}/settings.gradle`, `${embedAndroidProject}/rnApp/root.settings.gradle`);
-    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.settings.gradle`, (content) => {
-        return content.replace('rootProject.name', '//rootProject.name');
-    });
-    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.settings.gradle`, (content) => {
-        return content.replace(`':app'`, `':rnApp'`);
-    });
+
+    // gradle.properties changes
     await readAndReplaceFileContent(
         `${embedAndroidProject}/gradle.properties`,
         (content) => {
             const nativeProperties = propertiesReader(`${embedAndroidProject}/gradle.properties`);
             const rnProperties = propertiesReader(`${rnAndroidProject}/gradle.properties`);
             content += (Object.keys(rnProperties.getAllProperties())
-            .filter(k => (nativeProperties.get(k) === null))
-            .map(k => `\n${k}=${rnProperties.get(k)}`)).join('') || '';
-            return content.replace('android.nonTransitiveRClass=true', 'android.nonTransitiveRClass=false');
+                .filter(k => (nativeProperties.get(k) === null))
+                .map(k => `\n${k}=${rnProperties.get(k)}`)).join('') || '';
+            content = content.replace('android.nonTransitiveRClass=true', 'android.nonTransitiveRClass=false');
+            return content.replace(`org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8`, `org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m`);
         });
+
+    // build.gradle changes
+    await readAndReplaceFileContent(`${embedAndroidProject}/build.gradle`, (content) => {
+        return content + `apply from:'./rnApp/root.build.gradle'`;
+    });
+
+    // app/build.gradle changes
+    await readAndReplaceFileContent(`${embedAndroidProject}/app/build.gradle`, (content) => {
+        content = content.replace(`plugins {`, `plugins {\n\tid "com.facebook.react"`);
+        content = content.replace(`dependencies {`, `dependencies {\n\timplementation project(':rnApp')\n\timplementation 'com.facebook.react:react-native:+'\n`);
+        return content;
+    });
+
+    logger.info({
+        label: loggerLabel,
+        message: 'Changed Native Android project.'
+    });
+
+    // REACT NATIVE CHANGES
+
+    fs.copySync(`${rnAndroidProject}/app`, `${embedAndroidProject}/rnApp`);
+    fs.copySync(`${rnAndroidProject}/build.gradle`, `${embedAndroidProject}/rnApp/root.build.gradle`);
+    fs.copySync(`${rnAndroidProject}/settings.gradle`, `${embedAndroidProject}/rnApp/root.settings.gradle`);
+
+    // rnApp/root.build.gradle changes
+    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.build.gradle`, (content) => {
+        return content + `\nallprojects {
+            configurations.all {
+                resolutionStrategy {
+                    force "com.facebook.react:react-native:+"
+                    force "com.facebook.react:hermes-android:+"
+                    force "androidx.annotation:annotation:1.4.0"
+                }
+            }
+        }`;
+    });
+
+    // rnApp/root.settings.gradle changes
+    await readAndReplaceFileContent(`${embedAndroidProject}/rnApp/root.settings.gradle`, (content) => {
+        content = content.replace('rootProject.name', '//rootProject.name');
+        return content.replace(`':app'`, `':rnApp'`);
+    });
+
+    // rnApp/src/main/AndroidManifest changes
     await readAndReplaceFileContent(
         `${embedAndroidProject}/rnApp/src/main/AndroidManifest.xml`,
         (markup) => markup.replace(
             /<intent-filter>(.|\n)*?android:name="android.intent.category.LAUNCHER"(.|\n)*?<\/intent-filter>/g,
-        '<!-- Removed React Native Main activity as launcher. Check the embedApp with Launcher activity -->')
-        .replace(' android:theme="@style/AppTheme"', '')
-        .replace('android:name=".MainApplication"', ''));
+            '<!-- Removed React Native Main activity as launcher. Check the embedApp with Launcher activity -->')
+            .replace(' android:theme="@style/AppTheme"', ''));
+
+    // rnApp/build.gradle changes
     await readAndReplaceFileContent(
         `${embedAndroidProject}/rnApp/build.gradle`,
         (content) => {

@@ -118,23 +118,23 @@ async function embed(args) {
     fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.swift`, `${rnModulePath}/ReactNativeView.swift`);
     fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.h`, `${rnModulePath}/ReactNativeView.h`);
     fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.m`, `${rnModulePath}/ReactNativeView.m`);
+    const projectName = fs.readdirSync(`${config.src}ios-embed`)
+    .find(f => f.endsWith('xcodeproj'))
+    .split('.')[0];
+            
+    // xcode 16 issue https://github.com/CocoaPods/CocoaPods/issues/12456 - not required can be removed
+    await readAndReplaceFileContent(`${embedProject}/${projectName}.xcodeproj/project.pbxproj`, (content) => {
+        content = content.replaceAll("PBXFileSystemSynchronizedRootGroup", "PBXGroup")
+        return content.replaceAll(`objectVersion = 77`, `objectVersion = 56`)
+    })
+    
+    fs.copyFileSync(`${rnIosProject}/ios/Podfile`, `${rnIosProject}/ios-embed/Podfile`);
+    await readAndReplaceFileContent(`${embedProject}/Podfile`, (content) => {
+        return content.replace(/target .* do/g, `target '${projectName}' do`);
+    })
     await readAndReplaceFileContent(
         `${rnIosProject}/app.js`,
         (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));
-    await readAndReplaceFileContent(
-        `${rnIosProject}/node_modules/expo-splash-screen/build/SplashScreen.js`,
-        (content) => {
-            return content.replace('return await ExpoSplashScreen.preventAutoHideAsync();', 
-            `
-            // return await ExpoSplashScreen.preventAutoHideAsync();
-            return Promise.resolve();
-            `).replace('return await ExpoSplashScreen.hideAsync();', 
-            `
-            // return await ExpoSplashScreen.hideAsync();
-            return Promise.resolve();
-            `)
-        }
-    )
     await exec('npx', ['react-native', 'bundle', '--platform',  'ios',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'ios-embed/rnApp/main.jsbundle',
