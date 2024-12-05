@@ -28,6 +28,7 @@ function installGlobalNpmPackage(package) {
 
 var isWebPreview = false;
 var useProxy = false;
+var expoDirectoryHash = "";
 
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
@@ -241,6 +242,7 @@ function getExpoProjectDir(projectDir) {
     }
     if (isWindowsOS()){
         const expoDirHash = crypto.createHash("shake256", { outputLength: 8 }).update(`${projectDir}/target/generated-expo-app`).digest("hex");
+        expoDirectoryHash = expoDirHash;
         return path.resolve(`${global.rootDir}/wm-preview/` + expoDirHash);    
     }
     return `${projectDir}/target/generated-expo-app`;
@@ -251,6 +253,10 @@ async function setup(previewUrl, _clean, authToken) {
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
         clean(projectDir);
+        if(isWindowsOS() && expoDirectoryHash){
+            const projectDirHash = `${global.rootDir}/wm-preview/${expoDirectoryHash}`;
+            clean(projectDirHash);
+        }
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
