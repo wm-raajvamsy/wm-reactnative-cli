@@ -200,9 +200,11 @@ async function transpile(projectDir, previewUrl, incremental) {
 
 async function installDependencies(projectDir) {
     await updatePackageJsonFile(getExpoProjectDir(projectDir)+ '/package.json');
-    await exec('npm', ['install'], {
-        cwd: getExpoProjectDir(projectDir)
-    });
+    if(!isWebPreview){
+        await exec('npm', ['install'], {
+            cwd: getExpoProjectDir(projectDir)
+        });    
+    }
 }
 
 async function launchExpo(projectDir, web) {
