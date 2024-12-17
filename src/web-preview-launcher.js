@@ -19,6 +19,7 @@ let proxyUrl = `http://localhost:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 let codegen = '';
 let basePath = '/rn-bundle/';
+let expoVersion = '';
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
     const wmProjectDir = getWmProjectDir(projectDir);
@@ -148,6 +149,7 @@ async function updateForWebPreview(projectDir) {
     }));
     if (package['dependencies']['expo'] === '48.0.18') {
         webPreviewPort = 19000;
+        expoVersion = '48.0.18';
         package.devDependencies['fs-extra'] = '^10.0.0';
         package.devDependencies['@babel/plugin-proposal-export-namespace-from'] = '7.18.9';
         delete package.devDependencies['esbuild'];
@@ -170,6 +172,7 @@ async function updateForWebPreview(projectDir) {
             return JSON.stringify(appJson, null, 4);
         });
     } else if (package['dependencies']['expo'] === '49.0.7') {
+        expoVersion = '49.0.7';
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['react-native-reanimated'] = '^1.13.2';
         package.dependencies['victory'] = '^36.5.3';
@@ -180,6 +183,7 @@ async function updateForWebPreview(projectDir) {
         readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/babel.config.js`, content => 
             content.replace(`'react-native-reanimated/plugin',`, ''));
     } else {
+        expoVersion = package['dependencies']['expo'];
         package.dependencies['react-native-svg'] = '13.4.0';
         package.dependencies['victory'] = '^36.5.3';
         package.devDependencies['fs-extra'] = '^10.0.0';
@@ -255,15 +259,20 @@ async function installDependencies(projectDir) {
     readAndReplaceFileContent(`${nodeModulesDir}/core/base.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/advanced/carousel/carousel.component.js`, (c) => c.replace(/\?\?/g, '||'));
     readAndReplaceFileContent(`${nodeModulesDir}/components/input/rating/rating.component.js`, (c) => c.replace(/\?\?/g, '||'));
-    readAndReplaceFileContent(`${expoDir}/node_modules/expo-camera/build/useWebQRScanner.js`, (c) => {
-        if (c.indexOf('@koale/useworker') > 0) {
-            return fs.readFileSync(`${__dirname}/../templates/expo-camera-patch/useWebQRScanner.js`, {
-                encoding: 'utf-8'
-            })
-        }
-        return c;
-    });
+    if(expoVersion != '52.0.17'){
+        readAndReplaceFileContent(`${expoDir}/node_modules/expo-camera/build/useWebQRScanner.js`, (c) => {
+            if (c.indexOf('@koale/useworker') > 0) {
+                return fs.readFileSync(`${__dirname}/../templates/expo-camera-patch/useWebQRScanner.js`, {
+                    encoding: 'utf-8'
+                })
+            }
+            return c;
+        });    
+    }
     await readAndReplaceFileContent(`${expoDir}/node_modules/expo-font/build/ExpoFontLoader.web.js`, (content)=>{
+        if(expoVersion == '52.0.17'){
+            return content.replace(/src\s*:\s*url\(\$\{resource\.uri\}\);/g, 'src:url(.${resource.uri.replace("//rn-bundle//","/")});');
+        }
         return content.replace(/src\s*:\s*url\(\$\{resource\.uri\}\);/g, 'src:url(.${resource.uri});');
     });
     // https://github.com/expo/expo/issues/24273#issuecomment-2132297993
