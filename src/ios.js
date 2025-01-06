@@ -150,6 +150,46 @@ async function embed(args) {
     });
 }
 
+const newPostInstallBlock = `
+post_install do |installer|
+  react_native_post_install(
+    installer,
+    config[:reactNativePath],
+    :mac_catalyst_enabled => false
+  )
+
+  # Set provisioning profile to "None" for all pod targets
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['PROVISIONING_PROFILE'] = 'None'
+      config.build_settings['CODE_SIGN_IDENTITY'] = ''
+      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO' 
+    end
+  end
+
+  # Disable code signing for resource bundle targets
+  installer.target_installation_results.pod_target_installation_results
+    .each do |pod_name, target_installation_result|
+    target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
+      resource_bundle_target.build_configurations.each do |config|
+        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+        config.build_settings['PROVISIONING_PROFILE'] = 'None' 
+        config.build_settings['CODE_SIGN_IDENTITY'] = '' 
+      end
+    end
+  end
+end
+
+  post_integrate do |installer|
+    begin
+      expo_patch_react_imports!(installer)
+    rescue => e
+      Pod::UI.warn e
+    end
+  end
+end
+`;
+
 async function invokeiosBuild(args) {
     const certificate = args.iCertificate;
     const certificatePassword = args.iCertificatePassword;
@@ -208,6 +248,21 @@ async function invokeiosBuild(args) {
                 '       end' + '\n' +
                 '   end')
             });
+
+            const appJsonPath = path.join(config.src, 'app.json');
+            const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf-8'));
+            const buildPropertiesPlugin = appJson.expo.plugins && appJson.expo.plugins.find(plugin => plugin[0] === 'expo-build-properties');
+
+            if (buildPropertiesPlugin){
+                const iosConfig = buildPropertiesPlugin[1].ios;
+                if (iosConfig && iosConfig.useFrameworks === 'static'){
+                    await readAndReplaceFileContent(`${config.src}ios/Podfile`, (podfileContent) => {
+                        const modifiedPodContent = podfileContent.replace(/post_install do \|installer\|.+?^end\s*$/ms, newPostInstallBlock);
+                        return modifiedPodContent;
+                    });
+                }
+            }
+
             await exec('pod', ['install'], {cwd: config.src + 'ios'});
             return await xcodebuild(args, codeSignIdentity, provisionuuid, developmentTeamId);
         } catch (e) {
