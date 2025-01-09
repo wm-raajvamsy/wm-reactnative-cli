@@ -110,9 +110,9 @@ async function downloadProject(projectId, config, projectDir) {
 }
 
 async function gitResetAndPull(tempDir, projectDir){
-    await exec('git', ['reset', '--hard', 'master'], {cwd: projectDir});
     await exec('git', ['clean', '-fd'], {cwd: projectDir});
-    await exec('git', ['pull', path.join(tempDir, 'remoteChanges.bundle'), 'master'], {cwd: projectDir});
+    await exec('git', ['fetch', path.join(tempDir, 'remoteChanges.bundle'), 'refs/heads/master'], {cwd: projectDir});
+    await exec('git', ['reset', '--hard', 'FETCH_HEAD'], {cwd: projectDir});
 }
 
 async function pullChanges(projectId, config, projectDir) {
