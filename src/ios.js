@@ -12,6 +12,7 @@ const {
     validateForIos
  } = require('./requirements');
  const { readAndReplaceFileContent, iterateFiles } = require('./utils');
+ const { newPostInstallBlock } =  require('../templates/ios-build-patch/podFIlePostInstall');
 
  const loggerLabel = 'Generating ipa file';
 
@@ -208,6 +209,22 @@ async function invokeiosBuild(args) {
                 '       end' + '\n' +
                 '   end')
             });
+
+            const appJsonPath = path.join(config.src, 'app.json');
+            const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf-8'));
+            const buildPropertiesPlugin = appJson.expo.plugins && appJson.expo.plugins.find(plugin => plugin[0] === 'expo-build-properties');
+
+            if (buildPropertiesPlugin){
+                const iosConfig = buildPropertiesPlugin[1].ios;
+                if (iosConfig && iosConfig.useFrameworks === 'static'){
+                    await readAndReplaceFileContent(`${config.src}ios/Podfile`, (podfileContent) => {
+                        const postInstallRegex = /post_install\s+do\s+\|installer\|[\s\S]*?react_native_post_install\([\s\S]*?\)[\s\S]*?(?=post_integrate|$)/;
+                        const modifiedPodContent = podfileContent.replace(postInstallRegex, newPostInstallBlock);
+                        return modifiedPodContent;
+                    });
+                }
+            }
+
             await exec('pod', ['install'], {cwd: config.src + 'ios'});
             return await xcodebuild(args, codeSignIdentity, provisionuuid, developmentTeamId);
         } catch (e) {
