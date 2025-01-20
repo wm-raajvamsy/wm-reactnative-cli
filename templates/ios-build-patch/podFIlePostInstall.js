@@ -1,5 +1,5 @@
-const newPostInstallBlock = `
-post_install do |installer|
+const newPostInstallBlock = 
+`post_install do |installer|
   react_native_post_install(
     installer,
     config[:reactNativePath],
@@ -26,8 +26,7 @@ post_install do |installer|
       end
     end
   end
-end
-`;
+end`;
 
 module.exports = {
   newPostInstallBlock
