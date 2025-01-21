@@ -218,7 +218,7 @@ async function invokeiosBuild(args) {
                 const iosConfig = buildPropertiesPlugin[1].ios;
                 if (iosConfig && iosConfig.useFrameworks === 'static'){
                     await readAndReplaceFileContent(`${config.src}ios/Podfile`, (podfileContent) => {
-                        const postInstallRegex = /post_install\s+do\s+\|installer\|[\s\S]*?react_native_post_install\([\s\S]*?\)[\s\S]*?(?=post_integrate|$)/;
+                        const postInstallRegex = /^(\s*)post_install\s+do\s+\|installer\|[\s\S]*?^\1end$/m;
                         const modifiedPodContent = podfileContent.replace(postInstallRegex, newPostInstallBlock);
                         return modifiedPodContent;
                     });
