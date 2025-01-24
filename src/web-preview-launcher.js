@@ -218,10 +218,8 @@ async function getCodeGenPath(projectDir) {
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build`;
         let templatePackageJsonFile = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/package.json`);
-        const packageJson = fs.readJSONSync(templatePackageJsonFile);
-        const expoVersion = packageJson.dependencies.expo;
-        const cleanedVersion = semver.clean(expoVersion);    
-        if(semver.satisfies(cleanedVersion, '52.x')){
+        const packageJson = require(templatePackageJsonFile);
+        if(semver.eq(packageJson["dependencies"]["expo"], "52.0.17")){
             packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
         } 
     } else {
