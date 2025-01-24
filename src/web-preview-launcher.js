@@ -5,6 +5,8 @@ const http = require('http');
 const request = require('request');
 const os = require('os');
 const rimraf = require("rimraf");
+const semver = require('semver');
+const path = require('path');
 const open = require('open');
 const httpProxy = require('http-proxy');
 const {
@@ -18,6 +20,8 @@ const proxyPort = 19009;
 let proxyUrl = `http://localhost:${proxyPort}`;
 const loggerLabel = 'expo-launcher';
 let codegen = '';
+let rnAppPath = '';
+let packageLockJsonFile = '';
 let basePath = '/rn-bundle/';
 let expoVersion = '';
 function launchServiceProxy(projectDir, previewUrl) {
@@ -113,11 +117,16 @@ async function transpile(projectDir, previewUrl, incremental) {
     }
     try {
     await exec('node',
-        [codegen + '/index.js', 'transpile', `--profile="${profile}"`, '--autoClean=false',
-        `--incrementalBuild=${!!incremental}`,
+        [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
+            `--incrementalBuild=${!!incremental}`,
+            ...(rnAppPath ? [`--rnAppPath=${rnAppPath}`] : []),
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
     const config = fs.readJSONSync(configJSONFile);
+    if(packageLockJsonFile){
+        generatedExpoPackageLockJsonFile = path.resolve(`${getExpoProjectDir(expoProjectDir)}/package-lock.json`);
+        await fs.copy(packageLockJsonFile, generatedExpoPackageLockJsonFile, { overwrite: false });
+    }
     config.serverPath = `./_`;
     fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
     // TODO: iOS app showing blank screen
@@ -208,6 +217,13 @@ async function getCodeGenPath(projectDir) {
     codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build`;
+        let templatePackageJsonFile = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/package.json`);
+        const packageJson = fs.readJSONSync(templatePackageJsonFile);
+        const expoVersion = packageJson.dependencies.expo;
+        const cleanedVersion = semver.clean(expoVersion);    
+        if(semver.satisfies(cleanedVersion, '52.x')){
+            packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+        } 
     } else {
         codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
         if (!fs.existsSync(`${codegen}/index.js`)) {
@@ -223,6 +239,13 @@ async function getCodeGenPath(projectDir) {
             await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
                 cwd: temp
             });
+            let version = semver.coerce(uiVersion).version;
+            if(semver.gte(version, '11.10.0')){
+                rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
+                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+                    cwd: temp
+                });
+            }
         }
     }
     await readAndReplaceFileContent(`${codegen}/src/profiles/expo-preview.profile.js`, (content) => {

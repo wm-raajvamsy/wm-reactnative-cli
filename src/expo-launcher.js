@@ -16,6 +16,7 @@ const {VERSIONS, hasValidExpoVersion} = require('./requirements');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
 const path = require('path');
+const semver = require('semver');
 //const openTerminal =  require('open-terminal').default;
 const webPreviewPort = 19005;
 let proxyPort = 19009;
@@ -29,6 +30,7 @@ function installGlobalNpmPackage(package) {
 var isWebPreview = false;
 var useProxy = false;
 var expoDirectoryHash = "";
+let rnAppPath = "";
 
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
@@ -147,8 +149,16 @@ async function updatePackageJsonFile(path) {
 
 async function transpile(projectDir, previewUrl, incremental) {
     let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
+    let packageLockJsonFile = '';
     if (codegen) {
         codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
+        let templatePackageJsonFile = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/package.json`);
+        const packageJson = fs.readJSONSync(templatePackageJsonFile);
+        const expoVersion = packageJson.dependencies.expo;
+        const cleanedVersion = semver.clean(expoVersion);    
+        if(semver.satisfies(cleanedVersion, '52.x')){
+            packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+        } 
     } else {
         const wmProjectDir = getWmProjectDir(projectDir);
         codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
@@ -165,6 +175,13 @@ async function transpile(projectDir, previewUrl, incremental) {
             await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
                 cwd: temp
             });
+            let version = semver.coerce(uiVersion).version;
+            if(semver.gte(version, '11.10.0')){
+                rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
+                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+                    cwd: temp
+                });
+            } 
         }     
         await readAndReplaceFileContent(`${codegen}/src/profiles/expo-preview.profile.js`, (content) => {
             return content.replace('copyResources: false', 'copyResources: true');
@@ -174,10 +191,15 @@ async function transpile(projectDir, previewUrl, incremental) {
     await exec('node',
         [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
             `--incrementalBuild=${!!incremental}`,
+            ...(rnAppPath ? [`--rnAppPath=${rnAppPath}`] : []),
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
     const expoProjectDir = getExpoProjectDir(projectDir);
     const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
     const config = fs.readJSONSync(configJSONFile);
+    if(packageLockJsonFile){
+        generatedExpoPackageLockJsonFile = path.resolve(`${expoProjectDir}/package-lock.json`);
+        await fs.copy(packageLockJsonFile, generatedExpoPackageLockJsonFile, { overwrite: false });
+    }
     if (isWebPreview) {
         config.serverPath = `${proxyUrl}/_`;
     } else if (useProxy) {
