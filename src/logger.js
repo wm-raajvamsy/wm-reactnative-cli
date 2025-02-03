@@ -33,6 +33,7 @@ const jsonFormat = printf(({
 });
 var logger = createLogger({
     level: 'debug',
+    silent: !global.verbose,
     transports: [
         new(transports.Console)({
             timestamp: function () {
@@ -49,6 +50,7 @@ var logger = createLogger({
 logger.setLogDirectory = (path) => {
     logger.configure({
         level: 'debug',
+        silent: !global.verbose,
         transports: [
             new(transports.Console)({
                 timestamp: function () {
@@ -83,11 +85,8 @@ logger.setLogDirectory = (path) => {
     });
 };
 
-// Add method to enable/disable logging
-logger.setVerbose = (verbose) => {
-    if (!verbose) {
-        logger.level = 'silent';
-    }
-};
+// logger.setVerbose = (verbose) => {
+//     logger.silent = !verbose;
+// };
 
 module.exports = logger;
