@@ -72,6 +72,12 @@ const args = require('yargs')
                     default: 'apk',
                     choices: ['apk', 'bundle']
                 })
+                .option('architecture', {
+                    alias: 'arch',
+                    describe: 'Specify the target architectures for the build (e.g., armeabi-v7a, arm64-v8a, x86, x86_64)',
+                    type: 'array',
+                    choices: ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'],
+                })
             }, args => {
                 args.platform = 'android';
                 global.verbose = args.verbose;

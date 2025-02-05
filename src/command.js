@@ -170,6 +170,14 @@ function updateAppJsonFile(src) {
                 'if (false && isSslPinningAvailable()) {');
         });
     }
+
+    if(args.architecture) {
+        if(args.platform==='android'){
+            await readAndReplaceFileContent(`${config.src}/android/gradle.properties`, content => {
+                return content.replace(/^reactNativeArchitectures=.*$/m,`reactNativeArchitectures=${args.architecture.join(',')}`);
+            })
+        }
+    }
     config.outputDirectory = config.src + 'output/';
     config.logDirectory = config.outputDirectory + 'logs/';
     logger.info({
