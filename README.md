@@ -181,6 +181,7 @@ wm-reactnative sync <preview_url> [additional_arguments]
 |--|--|
 | **preview_url** | app preview url |
 |**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
+|**\-\-useProxy**|**DEFAULT:** false <br> if true, then all preview requests are routed through a internal proxy server. |
 
 After the build is complete:
 
