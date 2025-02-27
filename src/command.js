@@ -351,9 +351,15 @@ async function writeWmRNConfig(content) {
 // src points to unzip proj
 async function ejectProject(args) {
     try {
-        await exec('npx', ['expo','prebuild'], {
-            cwd: config.src
-        });
+        if(args.platform){
+            await exec('npx', ['expo','prebuild', "--platform", args.platform], {
+                cwd: config.src
+            });
+        }else{
+            await exec('npx', ['expo','prebuild'], {
+                cwd: config.src
+            });
+        }
         logger.info({
             label: loggerLabel,
             message: 'expo eject succeeded',
