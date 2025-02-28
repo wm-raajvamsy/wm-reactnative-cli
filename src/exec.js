@@ -37,9 +37,17 @@ class OutputPipe {
 
 module.exports = {
     'exec': (cmd, args, options) => {
-        logger.debug({label: loggerLabel, message: 'executing: ' + cmd + ' ' + (args && args.join(' '))});
+        logger.info({
+            label: loggerLabel,
+            message: `
+        \x1b[1;34m    ╔════════════════════════════════════╗
+            ║ Executing: ${cmd} ${(args && args.join(' '))}
+            ╚════════════════════════════════════╝\x1b[0m
+            `
+        });
+        
         const outputPipe = new OutputPipe(100, options && options.log, cmd.substr(cmd.lastIndexOf('/') + 1));
-        const spawn = execa(cmd, args, options);
+        const spawn = execa(cmd, args, {...options, env:{...process.env, FORCE_COLOR:'1'}});
         spawn.stdout.on('data', (data) => {
             outputPipe.push(String.fromCharCode.apply(null, new Uint16Array(data)));
         });
