@@ -12,8 +12,9 @@ const {
     exec
 } = require('./exec');
 
- const config = require('./config');
- const ios = require('./ios');
+const crypto = require('crypto');
+const config = require('./config');
+const ios = require('./ios');
 const { resolve } = require('path');
 const { isWindowsOS, readAndReplaceFileContent } = require('./utils');
 const loggerLabel = 'wm-reactnative-cli';
@@ -46,6 +47,23 @@ async function updatePackageJsonFile(path) {
         }
         if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
             jsonData['dependencies']['expo-file-system'] = '15.2.2'
+        }
+        if (jsonData['dependencies']['axios'] === '^1.4.0') {
+            jsonData['dependencies']['axios'] = '1.6.8';
+        }
+        const resolutions = jsonData["resolutions"] || {};
+        if (!resolutions['expo-application']) {
+            resolutions['expo-application'] = '5.8.4';
+        }
+        if (!resolutions['axios']) {
+            resolutions['axios'] = '1.6.8';
+        }
+        if (jsonData['dependencies']['expo'] === '50.0.17') {
+            resolutions['metro'] = '0.80.9';
+        }
+        jsonData["resolutions"] = resolutions;
+        if (config.platform === 'android') {
+            jsonData['dependencies']['@react-native-cookies/cookies'] = '6.2.1';
         }
         fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
         logger.info({
@@ -91,26 +109,38 @@ function updateAppJsonFile(src) {
         };
     }
     args.src = directories.src;
-    args.dest = directories.dest
-     if (!args.autoEject) {
-        const response = await showConfirmation('Would you like to eject the expo project (yes/no) ?');
+    args.dest = directories.dest;
+ 
+    config.metaData = await readWmRNConfig(args.src);
+
+    if (config.metaData.icon.src.startsWith('resources')) {
+        config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
+    }
+    if (config.metaData.splash.src.startsWith('resources')) {
+        config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
+    }
+
+     config.platform = args.platform;
+     
+     if (args.dest) {
+        args.dest = path.resolve(args.dest) + '/';
+}
+
+    await prepareProject(args);
+    if (args.targetPhase === 'PREPARE')
+    {
+        return;
+    }
+    if (!args.autoEject) {
+        const response = await showConfirmation(
+            'Would you like to eject the expo project (yes/no) ?'
+        );
         if (response !== 'y' && response !== 'yes') {
             process.exit();
         }
-     }
-     config.metaData = await readWmRNConfig(args.src);
-
-     if (config.metaData.icon.src.startsWith('resources')) {
-        config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
-     }
-     if (config.metaData.splash.src.startsWith('resources')) {
-        config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
-     }
-
-     config.platform = args.platform;
-     let response;
-     if (args.dest) {
-        args.dest = path.resolve(args.dest) + '/';
+    }
+    let response;
+    if (args.dest) {
         if (!config.metaData.ejected) {
             response = await ejectProject(args);
         }
@@ -136,6 +166,13 @@ function updateAppJsonFile(src) {
                 'if (false && isSslPinningAvailable()) {');
         });
     }
+
+    if(args.architecture && args.platform==='android') {
+        await readAndReplaceFileContent(`${config.src}/android/gradle.properties`, content => {
+            return content.replace(/^reactNativeArchitectures=.*$/m,`reactNativeArchitectures=${args.architecture.join(',')}`);
+        })
+    }
+
     config.outputDirectory = config.src + 'output/';
     config.logDirectory = config.outputDirectory + 'logs/';
     logger.info({
@@ -230,6 +267,10 @@ async function setupBuildDirectory(src, dest, platform) {
         }
     }
     dest = dest || await getDefaultDestination(metadata.id, platform);
+    if(isWindowsOS()){
+        const buildDirHash = crypto.createHash("shake256", { outputLength: 8 }).update(dest).digest("hex");
+        dest = path.resolve(`${global.rootDir}/wm-build/` + buildDirHash + "/");
+    }
     dest = path.resolve(dest)  + '/';
     if(src === dest) {
         logger.error({
@@ -310,11 +351,49 @@ async function writeWmRNConfig(content) {
 // src points to unzip proj
 async function ejectProject(args) {
     try {
+        if(args.platform){
+            await exec('npx', ['expo','prebuild', "--platform", args.platform], {
+                cwd: config.src
+            });
+        }else{
+            await exec('npx', ['expo','prebuild'], {
+                cwd: config.src
+            });
+        }
+        logger.info({
+            label: loggerLabel,
+            message: 'expo eject succeeded',
+        });
+        if (args.localrnruntimepath) {
+            const linkFolderPath =
+            config.src + 'node_modules/@wavemaker/app-rn-runtime';
+            // using removeSync when target is directory and unlinkSync works when target is file.
+            if (fs.existsSync(linkFolderPath)) {
+                fs.removeSync(linkFolderPath);
+            }
+            await fs.mkdirsSync(linkFolderPath);
+            await fs.copySync(args.localrnruntimepath, linkFolderPath);
+            logger.info({
+                label: loggerLabel,
+                message: 'copied the app-rn-runtime folder',
+            });
+        }
+    } catch (e) {
+        logger.error({
+            label: loggerLabel,
+            message: args.platform + ' eject project Failed. Due to :' + e,
+        });
+        return { errors: e, success: false };
+    }
+}
+
+async function prepareProject(args) {
+    try {
         config.src = args.dest;
         logger.info({
             label: loggerLabel,
-            message: 'destination folder where app is build at ' + args.dest
-        })
+            message: 'destination folder where app is build at ' + args.dest,
+        });
         if (!args.platform) {
             args.platform = 'android';
         }
@@ -352,30 +431,10 @@ async function ejectProject(args) {
         await exec('yarn', ['install'], {
             cwd: config.src
         });
-        await exec('npx', ['expo','prebuild'], {
-            cwd: config.src
-        });
-        logger.info({
-            'label': loggerLabel,
-            'message': 'expo eject succeeded'
-        });
-        if (args.localrnruntimepath) {
-            const linkFolderPath = config.src + 'node_modules/@wavemaker/app-rn-runtime';
-            // using removeSync when target is directory and unlinkSync works when target is file.
-            if (fs.existsSync(linkFolderPath)) {
-                fs.removeSync(linkFolderPath);
-            }
-            await fs.mkdirsSync(linkFolderPath);
-            await fs.copySync(args.localrnruntimepath, linkFolderPath);
-            logger.info({
-                'label': loggerLabel,
-                'message': 'copied the app-rn-runtime folder'
-            })
-        }
     } catch (e) {
         logger.error({
             label: loggerLabel,
-            message: args.platform + ' eject project Failed. Due to :' + e
+            message: args.platform + ' prepare project Failed. Due to :' + e,
         });
         return { errors: e, success : false };
     }
@@ -434,5 +493,14 @@ module.exports = {
             });
         }
     },
-    build: build
-}
+    build: build,
+    prepareProject: async (args) => {
+        args.targetPhase = 'PREPARE';
+        args.platform= 'expo';
+        await build(args);
+        logger.info({
+            label: loggerLabel,
+            message: `Project is prepared at : ${args.dest}.`,
+        });
+    },
+};

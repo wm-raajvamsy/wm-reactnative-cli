@@ -3,6 +3,8 @@ const logger = require('./logger');
 const config = require('./config');
 const plist = require('plist');
 const xcode = require('xcode');
+const path = require('path');
+const pparse = require('./mobileprovision-parse');
 const {
     exec
 } = require('./exec');
@@ -10,6 +12,7 @@ const {
     validateForIos
  } = require('./requirements');
  const { readAndReplaceFileContent, iterateFiles } = require('./utils');
+ const { newPostInstallBlock } =  require('../templates/ios-build-patch/podFIlePostInstall');
 
  const loggerLabel = 'Generating ipa file';
 
@@ -116,23 +119,23 @@ async function embed(args) {
     fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.swift`, `${rnModulePath}/ReactNativeView.swift`);
     fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.h`, `${rnModulePath}/ReactNativeView.h`);
     fs.copyFileSync(`${__dirname}/../templates/embed/ios/ReactNativeView.m`, `${rnModulePath}/ReactNativeView.m`);
+    const projectName = fs.readdirSync(`${config.src}ios-embed`)
+    .find(f => f.endsWith('xcodeproj'))
+    .split('.')[0];
+            
+    // xcode 16 issue https://github.com/CocoaPods/CocoaPods/issues/12456 - not required can be removed
+    await readAndReplaceFileContent(`${embedProject}/${projectName}.xcodeproj/project.pbxproj`, (content) => {
+        content = content.replaceAll("PBXFileSystemSynchronizedRootGroup", "PBXGroup")
+        return content.replaceAll(`objectVersion = 77`, `objectVersion = 56`)
+    })
+    
+    fs.copyFileSync(`${rnIosProject}/ios/Podfile`, `${rnIosProject}/ios-embed/Podfile`);
+    await readAndReplaceFileContent(`${embedProject}/Podfile`, (content) => {
+        return content.replace(/target .* do/g, `target '${projectName}' do`);
+    })
     await readAndReplaceFileContent(
         `${rnIosProject}/app.js`,
         (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));
-    await readAndReplaceFileContent(
-        `${rnIosProject}/node_modules/expo-splash-screen/build/SplashScreen.js`,
-        (content) => {
-            return content.replace('return await ExpoSplashScreen.preventAutoHideAsync();', 
-            `
-            // return await ExpoSplashScreen.preventAutoHideAsync();
-            return Promise.resolve();
-            `).replace('return await ExpoSplashScreen.hideAsync();', 
-            `
-            // return await ExpoSplashScreen.hideAsync();
-            return Promise.resolve();
-            `)
-        }
-    )
     await exec('npx', ['react-native', 'bundle', '--platform',  'ios',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'ios-embed/rnApp/main.jsbundle',
@@ -206,6 +209,22 @@ async function invokeiosBuild(args) {
                 '       end' + '\n' +
                 '   end')
             });
+
+            const appJsonPath = path.join(config.src, 'app.json');
+            const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf-8'));
+            const buildPropertiesPlugin = appJson.expo.plugins && appJson.expo.plugins.find(plugin => plugin[0] === 'expo-build-properties');
+
+            if (buildPropertiesPlugin){
+                const iosConfig = buildPropertiesPlugin[1].ios;
+                if (iosConfig && iosConfig.useFrameworks === 'static'){
+                    await readAndReplaceFileContent(`${config.src}ios/Podfile`, (podfileContent) => {
+                        const postInstallRegex = /^(\s*)post_install\s+do\s+\|installer\|[\s\S]*?^\1end$/m;
+                        const modifiedPodContent = podfileContent.replace(postInstallRegex, newPostInstallBlock);
+                        return modifiedPodContent;
+                    });
+                }
+            }
+
             await exec('pod', ['install'], {cwd: config.src + 'ios'});
             return await xcodebuild(args, codeSignIdentity, provisionuuid, developmentTeamId);
         } catch (e) {
@@ -219,31 +238,47 @@ async function invokeiosBuild(args) {
         }
 }
 
-
-async function updateInfoPlist(appName, PROVISIONING_UUID) {
-    return await new Promise(resolve => {
-        try {
-        const appId = config.metaData.id;
-
-        const infoPlistpath = config.src + 'ios/build/' + appName +'.xcarchive/Info.plist';
-         fs.readFile(infoPlistpath, async function (err, data) {
-            const content = data.toString().replace('<key>ApplicationProperties</key>',
-                `<key>compileBitcode</key>
-            <true/>
-            <key>provisioningProfiles</key>
-            <dict>
-                <key>${appId}</key>
-                <string>${PROVISIONING_UUID}</string>
-            </dict>
-            <key>ApplicationProperties</key>
-            `);
-            await fs.writeFile(infoPlistpath, Buffer.from(content));
-            resolve('success');
-        });
-    } catch (e) {
-        resolve('error', e);
+async function getPackageType(provisionalFile) {
+    const data = await pparse(provisionalFile);
+    //data.
+    if (data.type === 'appstore') {
+        return 'app-store';
     }
-    });
+    if (data.type === 'inhouse') {
+        return 'enterprise';
+    } 
+    if (data.type === 'adhoc') {
+        return 'ad-hoc';
+    }
+    throw new Error('Not able find the type of provisioning file.');
+}
+
+async function createExportPList(projectPath, {
+    appId,
+    provisioningProfile,
+    teamId,
+    packageType,
+    codeSignIdentity,
+    buildType
+}) {
+    const exportOptions = {
+        compileBitcode: true,
+        provisioningProfiles : { [appId]: String(provisioningProfile) },
+        signingCertificate: codeSignIdentity,
+        signingStyle: 'manual',
+        teamId: teamId,
+        method: packageType,
+        testFlightInternalTestingOnly: false
+    };
+    if (buildType === 'development') {
+        exportOptions.stripSwiftSymbols = false;
+    } else {
+        exportOptions.stripSwiftSymbols = true;
+    }
+    const exportOptionsPlist = plist.build(exportOptions);
+    const exportOptionsPath = path.join(projectPath, 'exportOptions.plist');
+    fs.writeFileSync(exportOptionsPath, exportOptionsPlist, 'utf-8');
+    return 'success'
 }
 
 const removePushNotifications = (projectDir, projectName) => {
@@ -298,6 +333,9 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
                 return content.replace(
                     'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
                     'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
+                    .replace(
+                        'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];',
+                        'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];');
             });
         } else {
             _buildType = 'Release';
@@ -318,13 +356,25 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
             cwd: config.src + 'ios',
             env: env
         });
+        
+        let packageType = 'development';
+        if (args.buildType === 'release') {
+            packageType = await getPackageType(args.iProvisioningFile);
+        }
+        const status = await createExportPList(config.src + 'ios', {
+            appId: config.metaData.id,
+            provisioningProfile: PROVISIONING_UUID,
+            teamId: DEVELOPMENT_TEAM,
+            packageType: packageType,
+            codeSignIdentity: CODE_SIGN_IDENTITY_VAL,
+            buildType: args.buildType
+        });
 
-        const status = await updateInfoPlist(fileName, PROVISIONING_UUID);
         if (status === 'success') {
             await exec('xcodebuild', [
                 '-exportArchive',
                 '-archivePath', 'build/' + fileName + '.xcarchive',
-                '-exportOptionsPlist', 'build/' + fileName + '.xcarchive/Info.plist', 
+                '-exportOptionsPlist', './exportOptions.plist', 
                 '-exportPath',
                 'build'], {
                 cwd: config.src + 'ios',

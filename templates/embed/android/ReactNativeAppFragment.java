@@ -54,6 +54,7 @@ public class ReactNativeAppFragment extends Fragment {
         Fragment reactNativeFragment = new ReactFragment.Builder()
                 .setComponentName("main")
                 .setLaunchOptions(getLaunchOptions(pageName))
+                .setFabricEnabled(false)
                 .build();
 
         this.getChildFragmentManager().beginTransaction()

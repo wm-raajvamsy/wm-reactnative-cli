@@ -22,7 +22,7 @@ async function findProjectId(config) {
             cookie: config.authCookie
         }})).data;
     const project = projectList.filter(p => p.displayName === config.projectName)
-        .filter(p => (config.appPreviewUrl.indexOf(p.name + "_" + p.vcsBranchId) >= 0));
+        .filter(p => (config.appPreviewUrl.endsWith(p.name + "_" + p.vcsBranchId)));
     if (project && project.length) {
         WM_PLATFORM_VERSION = project[0].platformVersion;
         return project[0].studioProjectId;
@@ -45,6 +45,7 @@ async function downloadFile(res, tempFile){
 }
 
 async function downloadProject(projectId, config, projectDir) {
+    try {
     const start = Date.now();
     logger.info({label: loggerLabel,message: 'downloading the project...'});
     const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
@@ -90,25 +91,32 @@ async function downloadProject(projectId, config, projectDir) {
         }
         else{
             await unzip(tempFile, tempDir);
-            fs.rmdir(projectDir, { recursive: true, force: true });
+            fs.rmSync(projectDir, { recursive: true, force: true });
             await exec('git', ['clone', "-b", "master", tempDir, projectDir]);
         }
-        fs.rmdir(tempDir, { recursive: true, force: true });
+        fs.rmSync(tempDir, { recursive: true, force: true });
     }
     logger.info({
         label: loggerLabel,
         message: `downloaded the project in (${Date.now() - start} ms).`
     });
     fs.unlink(tempFile);
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: e+` The download of the project has encountered an issue. Please ensure that the preview is active.`
+        });
+    }
 }
 
 async function gitResetAndPull(tempDir, projectDir){
-    await exec('git', ['reset', '--hard', 'master'], {cwd: projectDir});
     await exec('git', ['clean', '-fd'], {cwd: projectDir});
-    await exec('git', ['pull', path.join(tempDir, 'remoteChanges.bundle'), 'master'], {cwd: projectDir});
+    await exec('git', ['fetch', path.join(tempDir, 'remoteChanges.bundle'), 'refs/heads/master'], {cwd: projectDir});
+    await exec('git', ['reset', '--hard', 'FETCH_HEAD'], {cwd: projectDir});
 }
 
 async function pullChanges(projectId, config, projectDir) {
+    try {
     const output = await exec('git', ['rev-parse', 'HEAD'], {
         cwd: projectDir
     });
@@ -159,7 +167,13 @@ async function pullChanges(projectId, config, projectDir) {
         await gitResetAndPull(tempDir, projectDir);
         fs.unlink(tempFile);
     }
-    fs.rmdir(tempDir, { recursive: true, force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: e+` The attempt to execute "git pull" was unsuccessful. Please verify your connections.`
+        });
+    }
 }
 
 function copyContentsRecursiveSync(src, dest) {
@@ -210,6 +224,7 @@ async function authenticateWithUserNameAndPassword(config) {
 }
 
 async function authenticateWithToken(config, showHelp) {
+    try {
     if (showHelp) {
         console.log('***************************************************************************************');
         console.log('* Please open the below url in the browser, where your WaveMaker studio is opened.    *');
@@ -225,6 +240,12 @@ async function authenticateWithToken(config, showHelp) {
         return authenticateWithToken(config);
     }
     return 'auth_cookie='+cookie;
+    } catch (e) {
+        logger.info({
+            label: loggerLabel,
+            message: e+` Your authentication has failed. Please proceed with a valid token.`
+        });
+    }
 }
 
 function getUserCredentials() {
@@ -287,6 +308,9 @@ async function checkAuthCookie(config) {
 async function setup(previewUrl, projectName, authToken) {
     if (authToken) {
         authToken = 'auth_cookie=' + authToken;
+    }
+    if (previewUrl.endsWith('/')) {
+        previewUrl = previewUrl.slice(0, -1);
     }
     const config = {
         authCookie : authToken || global.localStorage.getItem(STORE_KEY) || '',

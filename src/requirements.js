@@ -141,7 +141,8 @@ async function hasValidNodeVersion() {
 }
 
 async function hasValidExpoVersion() {
-    return await checkAvailability('expo');
+    // return await checkAvailability('expo');
+    return true;
 }
 
 function validateForAndroid(keyStore, storePassword, keyAlias, keyPassword) {

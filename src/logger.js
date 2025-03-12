@@ -4,6 +4,7 @@ const {
     transports
 } = require('winston');
 const {
+    colorize,
     combine,
     timestamp,
     printf
@@ -39,6 +40,7 @@ var logger = createLogger({
                 return Date.now();
             },
             format: combine(
+                colorize(),
                 timestamp(),
                 consoleFormat
             )
@@ -55,6 +57,7 @@ logger.setLogDirectory = (path) => {
                     return Date.now();
                 },
                 format: combine(
+                    colorize(),
                     timestamp(),
                     consoleFormat
                 )
