@@ -10,7 +10,7 @@ const httpProxy = require('http-proxy');
 const {
     exec
 } = require('./exec');
-const { readAndReplaceFileContent, isWindowsOS } = require('./utils');
+const { readAndReplaceFileContent, isWindowsOS, isExpoWebPreviewContainer } = require('./utils');
 const crypto = require('crypto');
 const {VERSIONS, hasValidExpoVersion} = require('./requirements');
 const axios = require('axios');
@@ -32,7 +32,7 @@ var useProxy = false;
 var expoDirectoryHash = "";
 let rnAppPath = "";
 let etag = "";
-let isExpoWebPreview = false;
+let isExpoPreviewContainer = false;
 
 function launchServiceProxy(projectDir, previewUrl) {
     const proxy =  httpProxy.createProxyServer({});
@@ -289,14 +289,9 @@ async function setup(previewUrl, _clean, authToken) {
     return {projectDir, syncProject};
 }
 
-async function isExpoWebPreviewContainer(previewUrl) {
-    const response = await axios.get(`${previewUrl}/rn-bundle/index.html`).catch((e) => e.response);
-    isExpoWebPreview = response.data.includes("index.bundle") && response.data.includes("platform=web");
-}
-
 async function watchProjectChanges(previewUrl, onChange, lastModifiedOn) {
     try {
-        if(isExpoWebPreview){
+        if(isExpoPreviewContainer){
             const response = await axios.get(`${previewUrl}/rn-bundle/index.bundle?minify=true&platform=web&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable`, {
                 headers: {
                     'if-none-match' : etag || ""
@@ -409,6 +404,7 @@ async function runExpo(previewUrl, clean, authToken) {
         if (!isWebPreview) {
             launchExpo(projectDir);
         }
+        isExpoPreviewContainer = await isExpoWebPreviewContainer(previewUrl);
         watchProjectChanges(previewUrl, () => {
             const startTime = Date.now();
             syncProject()
@@ -443,7 +439,7 @@ async function sync(previewUrl, clean) {
     if (useProxy) {
         launchServiceProxy(projectDir, previewUrl);
     }
-    await isExpoWebPreviewContainer(previewUrl);
+    isExpoPreviewContainer = await isExpoWebPreviewContainer(previewUrl);
     watchProjectChanges(previewUrl, () => {
         const startTime = Date.now();
         syncProject()
