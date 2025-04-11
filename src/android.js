@@ -155,6 +155,14 @@ function updateOptimizationFlags() {
             content = content.replace(/def enableProguardInReleaseBuilds = false/gm, `def enableProguardInReleaseBuilds = true`)
                 .replace(/minifyEnabled enableProguardInReleaseBuilds/gm, `minifyEnabled enableProguardInReleaseBuilds\n shrinkResources false\n`);
         }
+        content = content.replace(
+            /shrinkResources\s*\(\sfindProperty\('android\.enableShrinkResourcesInReleaseBuilds'\)\?.?:\sfalse\s\)/g,
+            "shrinkResources true"
+          )
+          .replace(
+            /minifyEnabled\s+\(?\s*(enableProguardInReleaseBuilds)\s*\)?/g,
+            "minifyEnabled true\n    " // Adds a proper newline & indentation
+          );
         fs.writeFileSync(buildGradlePath, content);
     }
 }
