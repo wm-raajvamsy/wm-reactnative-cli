@@ -19,6 +19,10 @@ updateNotifier({
 	defer: false
 });
 const prompt = require('prompt');
+const logger = require('./src/logger');
+const {calculateTotalSteps, androidBuildSteps, previewSteps} = require('./src/custom-logger/steps');
+const {overallProgressBar} = require('./src/custom-logger/progress-bar')
+const taskLogger = require('./src/custom-logger/task-logger').spinnerBar;
 
 global.rootDir = process.env.WM_REACTNATIVE_CLI || `${os.homedir()}/.wm-reactnative-cli`;
 global.localStorage = new LocalStorage(`${global.rootDir}/.store`);
@@ -77,7 +81,17 @@ const args = require('yargs')
                 })
             }, args => {
                 args.platform = 'android';
-                build(args)
+                if(args.interactive){
+                    overallProgressBar.enable();
+                    // taskLogger.enableProgressBar();
+                }else{
+                    overallProgressBar.disable();
+                    // taskLogger.disableProgressBar();
+                }
+                global.verbose = args.verbose;
+                const totalCount = calculateTotalSteps(androidBuildSteps);
+                overallProgressBar.setTotal(totalCount);
+                build(args);
             })
             .command('ios [src] [options]', 'build for iOS', yargs => {
                 yargs.option('ic', {
@@ -97,6 +111,16 @@ const args = require('yargs')
                 });
             }, args => {
                 args.platform = 'ios';
+                if(args.interactive){
+                    overallProgressBar.enable();
+                    // taskLogger.enableProgressBar();
+                }else{
+                    overallProgressBar.disable();
+                    // taskLogger.disableProgressBar();
+                }
+                global.verbose = args.verbose;
+                const totalCount = calculateTotalSteps(androidBuildSteps);
+                overallProgressBar.setTotal(totalCount);
                 build(args)
             })
             yargs.positional('src', {
@@ -136,6 +160,17 @@ const args = require('yargs')
                 default: false,
                 type: 'boolean'
             })
+            .option('verbose', {
+                describe: 'If set to true, then detailed logs will be displayed.',
+                default: false,
+                type: 'boolean'
+            })
+            .option('interactive', {
+                alias: 'i',
+                describe: 'if set true, progress bar will show',
+                default: false,
+                type: 'boolean'
+            });
     })
     .command('eject expo [src] [dest]',
         'Removes Expo and generate pure react native project.',
@@ -233,17 +268,39 @@ const args = require('yargs')
                     describe: 'Base Path at which the web preview has to be server.',
                     default: '/rn-bundle/',
                 })
+                .option('verbose', {
+                    describe: 'If set to true, then detailed logs will be displayed.',
+                    default: false,
+                    type: 'boolean'
+                })
+                .option('interactive', {
+                    alias: 'i',
+                    describe: 'if set true, progress bar will show',
+                    default: false,
+                    type: 'boolean'
+                });
             },
             (args) => {
                 if (args.clean) {
                     localStorage.clear();
                 }
+                if(args.interactive){
+                    overallProgressBar.enable();
+                    // taskLogger.enableProgressBar();
+                }else{
+                    overallProgressBar.disable();
+                    // taskLogger.disableProgressBar();
+                }
+                global.verbose = args.verbose;
+                const totalCount = calculateTotalSteps(previewSteps);
                 const splits = args.previewUrl.split('#');
                 args.previewUrl = splits[0];
                 const authToken = splits[1];
                 if (args.esbuild) {
+                    overallProgressBar.setTotal(totalCount-previewSteps[4].total);
                     runESBuildWebPreview(args.previewUrl, args.clean, authToken);
                 } else {
+                    overallProgressBar.setTotal(totalCount);
                     runWeb(args.previewUrl, args.clean, authToken, args.proxyHost, args.basePath);
                 }
         }).command('android <previewUrl>',
@@ -291,11 +348,32 @@ const args = require('yargs')
             describe: 'If set to true then all existing folders are removed.',
             default: false,
             type: 'boolean'
+        })
+        .option('verbose', {
+            describe: 'If set to true, then detailed logs will be displayed.',
+            default: false,
+            type: 'boolean'
+        })
+        .option('interactive', {
+            alias: 'i',
+            describe: 'if set true, progress bar will show',
+            default: false,
+            type: 'boolean'
         });
     }, (args) => {
         if (args.clean) {
             localStorage.clear();
         }
+        if(args.interactive){
+            overallProgressBar.enable();
+            // taskLogger.enableProgressBar();
+        }else{
+            overallProgressBar.disable();
+            // taskLogger.disableProgressBar();
+        }
+        global.verbose = args.verbose;
+        const totalCount = calculateTotalSteps(previewSteps);
+        overallProgressBar.setTotal(totalCount);
         sync(args.previewUrl, args.clean, args.useProxy);
     })
     .help('h')

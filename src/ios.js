@@ -13,6 +13,8 @@ const {
  } = require('./requirements');
  const { readAndReplaceFileContent, iterateFiles } = require('./utils');
  const { newPostInstallBlock } =  require('../templates/ios-build-patch/podFIlePostInstall');
+const taskLogger = require('./custom-logger/task-logger').spinnerBar;
+const {androidBuildSteps} = require('./custom-logger/steps');
 
  const loggerLabel = 'Generating ipa file';
 
@@ -152,6 +154,7 @@ async function embed(args) {
 }
 
 async function invokeiosBuild(args) {
+    taskLogger.info("Invoke IOS build")
     const certificate = args.iCertificate;
     const certificatePassword = args.iCertificatePassword;
     const provisionalFile = args.iProvisioningFile;
@@ -177,11 +180,13 @@ async function invokeiosBuild(args) {
             label: loggerLabel,
             message: `provisional UUID : ${provisionuuid}`
         });
+        taskLogger.info(`provisional UUID : ${provisionuuid}`);
         const developmentTeamId = await extractTeamId(provisionalFile);
         logger.info({
             label: loggerLabel,
             message: `developmentTeamId : ${developmentTeamId}`
         });
+        taskLogger.info(`developmentTeamId : ${developmentTeamId}`);
         const ppFolder = `/Users/${username}/Library/MobileDevice/Provisioning\ Profiles`;
         fs.mkdirSync(ppFolder, {
             recursive: true
@@ -192,6 +197,7 @@ async function invokeiosBuild(args) {
             label: loggerLabel,
             message: `copied provisionalFile (${provisionalFile}).`
         });
+        taskLogger.info(`copied provisionalFile (${provisionalFile}).`);
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
 
         try {
@@ -308,6 +314,8 @@ function findFile(path, nameregex) {
 
 async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVELOPMENT_TEAM) {
     try {
+        taskLogger.start(androidBuildSteps[4].start);
+        taskLogger.setTotal(androidBuildSteps[4].total);
         let xcworkspacePath = findFile(config.src + 'ios', /\.xcworkspace?/) || findFile(config.src + 'ios', /\.xcodeproj?/);
         if (!xcworkspacePath) {
             return {
@@ -322,6 +330,7 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         const xcworkspaceFileName = pathArr[pathArr.length - 1];
         const fileName = xcworkspaceFileName.split('.')[0];
         removePushNotifications(config.src, fileName);
+        taskLogger.incrementProgress(0.4);
         let _buildType;
         if (args.buildType === 'development' || args.buildType === 'debug') {
             _buildType = 'Debug';
@@ -343,6 +352,7 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         const env = {
             RCT_NO_LAUNCH_PACKAGER: 1
         };
+        taskLogger.incrementProgress(0.4);
         await exec('xcodebuild', [
             '-workspace', fileName + '.xcworkspace',
             '-scheme', fileName,
@@ -389,11 +399,13 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
                 output: outputFilePath
             }
         }
+        taskLogger.succeed(androidBuildSteps[4].succeed);
     } catch (e) {
         logger.error({
             label: loggerLabel,
             message: e
         });
+        taskLogger.fail(androidBuildSteps[4].fail);
         console.error(e);
         return {
             errors: e,

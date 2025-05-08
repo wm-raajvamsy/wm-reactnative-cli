@@ -15,6 +15,9 @@ const {
 const { readAndReplaceFileContent, streamToString, isExpoWebPreviewContainer } = require('./utils');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
+const taskLogger = require('./custom-logger/task-logger').spinnerBar;
+const { previewSteps } = require('./custom-logger/steps');
+const chalk = require('chalk');
 let webPreviewPort = 19006;
 const proxyPort = 19009;
 let proxyUrl = `http://localhost:${proxyPort}`;
@@ -117,6 +120,7 @@ async function transpile(projectDir, previewUrl, incremental) {
     let profile = 'expo-preview';
     if(fs.existsSync(`${codegen}/src/profiles/expo-web-preview.profile.js`)){
         profile = 'expo-web-preview';
+        taskLogger.incrementProgress(2);
     }
     try {
     await exec('node',
@@ -124,6 +128,7 @@ async function transpile(projectDir, previewUrl, incremental) {
             `--incrementalBuild=${!!incremental}`,
             ...(rnAppPath ? [`--rnAppPath=${rnAppPath}`] : []),
             getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
+    taskLogger.incrementProgress(2);
     const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
     const config = fs.readJSONSync(configJSONFile);
     if(packageLockJsonFile){
@@ -149,8 +154,9 @@ async function transpile(projectDir, previewUrl, incremental) {
         label: loggerLabel,
         message: `generated expo project at ${getExpoProjectDir(projectDir)}`
     });
+    taskLogger.incrementProgress(2);
+    taskLogger.succeed(previewSteps[3].succeed);
     await updateForWebPreview(projectDir); // Incorporating customized patches for any packages, if necessary.
-    await installDependencies(projectDir);
 }
 
 async function updateForWebPreview(projectDir) {
@@ -256,6 +262,8 @@ async function getCodeGenPath(projectDir) {
 
 async function installDependencies(projectDir) {
     try {
+    taskLogger.start(previewSteps[4].start);
+    taskLogger.setTotal(previewSteps[4].total);
     const expoDir = getExpoProjectDir(projectDir);
     if (fs.existsSync(`${expoDir}/node_modules/expo`)) {
         return;
@@ -264,9 +272,11 @@ async function installDependencies(projectDir) {
         label: loggerLabel,
         message: "Dependency installation process initiated..."
       });
+    taskLogger.incrementProgress(1);
     await exec('npm', ['install'], {
         cwd: expoDir
     });
+    taskLogger.incrementProgress(2);
     await exec('node', ['./esbuild/esbuild.script.js', '--prepare-lib'], {
         cwd: expoDir
     });
@@ -304,11 +314,13 @@ async function installDependencies(projectDir) {
         content = content.replace('getEnvPrelude(str)', '//getEnvPrelude(str)');
         return content.replace('// process.env', '// process.env \n firstModule.output[0].data.code = firstModule.output[0].data.code + str;');
     });
+    taskLogger.succeed(previewSteps[4].succeed);
     } catch (e) {
         logger.error({
             label: loggerLabel,
             message: e+' Encountered an error while installing dependencies.'
           });
+        taskLogger.error(e+' Encountered an error while installing dependencies.');
     }
 }
 
@@ -334,6 +346,8 @@ function getExpoProjectDir(projectDir) {
 }
 
 async function setup(previewUrl, _clean, authToken) {
+    taskLogger.setTotal(previewSteps[0].total);
+    taskLogger.start(previewSteps[0].start);
     const projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
@@ -341,8 +355,13 @@ async function setup(previewUrl, _clean, authToken) {
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
+    taskLogger.incrementProgress(1);
+    taskLogger.succeed(previewSteps[0].succeed);
     const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
+    taskLogger.start(previewSteps[3].start);
+    taskLogger.setTotal(previewSteps[3].total);
     await transpile(projectDir, previewUrl, false);
+    await installDependencies(projectDir);
     return {projectDir, syncProject};
 }
 
@@ -414,7 +433,7 @@ function watchForPlatformChanges(callBack) {
         lastKnownModifiedTime = currentModifiedTime;
 
         if (doBuild && callBack) {
-            console.log('\n\n\n')
+            // console.log('\n\n\n')
             logger.info({
                 label: loggerLabel,
                 message: 'Platform Changed. Building again.'
@@ -436,6 +455,8 @@ async function runWeb(previewUrl, clean, authToken) {
     try {
         const {projectDir, syncProject} = await setup(previewUrl, clean, authToken);
         let isExpoStarted = false;
+        taskLogger.info( `generated expo project at ${getExpoProjectDir(projectDir)}`);
+        taskLogger.succeed(chalk.green("Expo-web build finished ") + chalk.blue(`Service proxy launched at ${proxyUrl}`));
         isExpoPreviewContainer = await isExpoWebPreviewContainer(previewUrl);
         watchProjectChanges(previewUrl, () => {
             const startTime = Date.now();
@@ -445,14 +466,18 @@ async function runWeb(previewUrl, clean, authToken) {
                     label: loggerLabel,
                     message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
                 });
+                taskLogger.info(`Sync Time: ${(Date.now() - startTime)/ 1000}s.`);
             })
             .then(() => {
                 return transpile(projectDir, previewUrl, true).then(() => {
                     if (!isExpoStarted) {
                         isExpoStarted = true;
                         launchServiceProxy(projectDir, previewUrl);
-                        return exec('npx', ['expo', 'start', '--web', '--offline', `--port=${webPreviewPort}`], {
-                            cwd: getExpoProjectDir(projectDir)
+                        return new Promise((resolve) => {
+                            exec('npx', ['expo', 'start', '--web', '--offline', `--port=${webPreviewPort}`], {
+                                cwd: getExpoProjectDir(projectDir)
+                            });
+                            resolve();
                         });
                     }
                 }).then(() => {
@@ -461,10 +486,24 @@ async function runWeb(previewUrl, clean, authToken) {
                         label: loggerLabel,
                         message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
                     });
+                    taskLogger.info(`Total Time: ${(Date.now() - startTime)/ 1000}s.`);
                 });
+            }).catch(err => {
+                taskLogger.warn("Error occurred: ", err);
+                console.error(err);
             });
         });
-        watchForPlatformChanges(() => transpile(projectDir, previewUrl, false));
+        watchForPlatformChanges(() => { 
+            const startTime = Date.now();
+            return transpile(projectDir, previewUrl, false).then(() => {
+                const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+                logger.info({
+                    label: loggerLabel,
+                    message: `Total Time: ${duration}s.`
+                });
+                taskLogger.info(`Total Time: ${duration}s.`);
+            });
+        });
     } catch(e) {
         logger.error({
             label: loggerLabel,

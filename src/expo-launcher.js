@@ -22,10 +22,14 @@ const webPreviewPort = 19005;
 let proxyPort = 19009;
 let barcodePort = 19000;
 let proxyUrl = `http://${getIpAddress()}:${proxyPort}`;
+let localHostUrl = `http://localhost:${proxyPort}`
 const loggerLabel = 'expo-launcher';
 function installGlobalNpmPackage(package) {
     return exec('npm', ['install', '-g', package]);
 }
+const taskLogger = require('./custom-logger/task-logger').spinnerBar;
+const {previewSteps} = require('./custom-logger/steps');
+const chalk = require('chalk');
 
 var isWebPreview = false;
 var useProxy = false;
@@ -150,83 +154,104 @@ async function updatePackageJsonFile(path) {
 }
 
 async function transpile(projectDir, previewUrl, incremental) {
-    let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
-    let packageLockJsonFile = '';
-    if (codegen) {
-        codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
-        let templatePackageJsonFile = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/package.json`);
-        const packageJson = require(templatePackageJsonFile);
-        if(semver.eq(packageJson["dependencies"]["expo"], "52.0.17")){
-            packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
-        } 
-    } else {
-        const wmProjectDir = getWmProjectDir(projectDir);
-        codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
-        if (!fs.existsSync(`${codegen}/index.js`)) {
-            const temp = projectDir + '/target/codegen';
-            fs.mkdirSync(temp, {recursive: true});
-            await exec('npm', ['init', '-y'], {
-                cwd: temp
-            });
-            var pom = fs.readFileSync(`${projectDir}/pom.xml`, { encoding: 'utf-8'});
-            var uiVersion = ((pom 
-                && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
-                || [])[1];
-            await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
-                cwd: temp
-            });
-            let version = semver.coerce(uiVersion).version;
-            if(semver.gte(version, '11.10.0')){
-                rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
-                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+    try{
+        taskLogger.start(previewSteps[3].start);
+        taskLogger.setTotal(previewSteps[3].total);
+        let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
+        let packageLockJsonFile = '';
+        if (codegen) {
+            codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
+            let templatePackageJsonFile = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/package.json`);
+            const packageJson = require(templatePackageJsonFile);
+            if(semver.eq(packageJson["dependencies"]["expo"], "52.0.17")){
+                packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+            } 
+            taskLogger.incrementProgress(2);
+        } else {
+            const wmProjectDir = getWmProjectDir(projectDir);
+            codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
+            if (!fs.existsSync(`${codegen}/index.js`)) {
+                const temp = projectDir + '/target/codegen';
+                fs.mkdirSync(temp, {recursive: true});
+                await exec('npm', ['init', '-y'], {
                     cwd: temp
                 });
-            } 
-        }     
-        await readAndReplaceFileContent(`${codegen}/src/profiles/expo-preview.profile.js`, (content) => {
-            return content.replace('copyResources: false', 'copyResources: true');
+                var pom = fs.readFileSync(`${projectDir}/pom.xml`, { encoding: 'utf-8'});
+                var uiVersion = ((pom 
+                    && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
+                    || [])[1];
+                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
+                    cwd: temp
+                });
+                taskLogger.incrementProgress(2);
+                let version = semver.coerce(uiVersion).version;
+                if(semver.gte(version, '11.10.0')){
+                    rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
+                    await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+                        cwd: temp
+                    });
+                } 
+            }     
+            await readAndReplaceFileContent(`${codegen}/src/profiles/expo-preview.profile.js`, (content) => {
+                return content.replace('copyResources: false', 'copyResources: true');
+            });
+        }
+        const profile = isWebPreview ? 'web-preview' : 'expo-preview';
+        await exec('node',
+            [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
+                `--incrementalBuild=${!!incremental}`,
+                ...(rnAppPath ? [`--rnAppPath=${rnAppPath}`] : []),
+                getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
+        taskLogger.incrementProgress(2);
+        const expoProjectDir = getExpoProjectDir(projectDir);
+        const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
+        const config = fs.readJSONSync(configJSONFile);
+        if(packageLockJsonFile){
+            generatedExpoPackageLockJsonFile = path.resolve(`${expoProjectDir}/package-lock.json`);
+            await fs.copy(packageLockJsonFile, generatedExpoPackageLockJsonFile, { overwrite: false });
+        }
+        if (isWebPreview) {
+            config.serverPath = `${proxyUrl}/_`;
+        } else if (useProxy) {
+            config.serverPath = `http://${getIpAddress()}:${proxyPort}/`;
+        } else {
+            config.serverPath = previewUrl;
+        }
+        fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
+        // TODO: iOS app showing blank screen
+        if (!(config.sslPinning && config.sslPinning.enabled)) {
+            await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/App.js`, content => {
+                return content.replace('if (isSslPinningAvailable()) {', 
+                    'if (false && isSslPinningAvailable()) {');
+            });
+        }
+        logger.info({
+            label: loggerLabel,
+            message: `generated expo project at ${getExpoProjectDir(projectDir)}`
         });
+        taskLogger.incrementProgress(2);
+        taskLogger.succeed(`${previewSteps[3].succeed}`)
+
+    }catch(e){
+        taskLogger.fail(previewSteps[3].fail);
     }
-    const profile = isWebPreview ? 'web-preview' : 'expo-preview';
-    await exec('node',
-        [codegen, 'transpile', '--profile="' + profile + '"', '--autoClean=false',
-            `--incrementalBuild=${!!incremental}`,
-            ...(rnAppPath ? [`--rnAppPath=${rnAppPath}`] : []),
-            getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
-    const expoProjectDir = getExpoProjectDir(projectDir);
-    const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
-    const config = fs.readJSONSync(configJSONFile);
-    if(packageLockJsonFile){
-        generatedExpoPackageLockJsonFile = path.resolve(`${expoProjectDir}/package-lock.json`);
-        await fs.copy(packageLockJsonFile, generatedExpoPackageLockJsonFile, { overwrite: false });
-    }
-    if (isWebPreview) {
-        config.serverPath = `${proxyUrl}/_`;
-    } else if (useProxy) {
-        config.serverPath = `http://${getIpAddress()}:${proxyPort}/`;
-    } else {
-        config.serverPath = previewUrl;
-    }
-    fs.writeFileSync(configJSONFile, JSON.stringify(config, null, 4));
-    // TODO: iOS app showing blank screen
-    if (!(config.sslPinning && config.sslPinning.enabled)) {
-        await readAndReplaceFileContent(`${getExpoProjectDir(projectDir)}/App.js`, content => {
-            return content.replace('if (isSslPinningAvailable()) {', 
-                'if (false && isSslPinningAvailable()) {');
-        });
-    }
-    logger.info({
-        label: loggerLabel,
-        message: `generated expo project at ${getExpoProjectDir(projectDir)}`
-    });
 }
 
 async function installDependencies(projectDir) {
     await updatePackageJsonFile(getExpoProjectDir(projectDir)+ '/package.json');
     if(!isWebPreview){
-        await exec('npm', ['install'], {
-            cwd: getExpoProjectDir(projectDir)
-        });    
+        try{
+            taskLogger.start(previewSteps[4].start);
+            taskLogger.setTotal(previewSteps[4].total);
+            taskLogger.incrementProgress(1);
+            await exec('npm', ['install'], {
+                cwd: getExpoProjectDir(projectDir)
+            }); 
+            taskLogger.incrementProgress(3);
+            taskLogger.succeed(previewSteps[4].succeed);
+        }catch(e){
+            taskLogger.fail(previewSteps[4].fail);
+        }
     }
 }
 
@@ -273,6 +298,9 @@ function getExpoProjectDir(projectDir) {
 }
 
 async function setup(previewUrl, _clean, authToken) {
+    taskLogger.setTotal(previewSteps[0].total);
+    taskLogger.start(previewSteps[0].start);
+    taskLogger.incrementProgress(0.5);
     const projectName = await getProjectName(previewUrl);
     const projectDir = `${global.rootDir}/wm-projects/${projectName.replace(/\s+/g, '_').replace(/\(/g, '_').replace(/\)/g, '_')}`;
     if (_clean) {
@@ -284,6 +312,10 @@ async function setup(previewUrl, _clean, authToken) {
     } else {
         fs.mkdirpSync(getWmProjectDir(projectDir));
     }
+    taskLogger.incrementProgress(0.5);
+    taskLogger.succeed(previewSteps[0].succeed);
+    taskLogger.resetProgressBar();
+    taskLogger.setTotal(previewSteps[1].total)
     const syncProject = await setupProject(previewUrl, projectName, projectDir, authToken);
     await transpile(projectDir, previewUrl, false);
     return {projectDir, syncProject};
@@ -371,7 +403,7 @@ function watchForPlatformChanges(callBack) {
         lastKnownModifiedTime = currentModifiedTime;
 
         if (doBuild && callBack) {
-            console.log('\n\n\n')
+            // console.log('\n\n\n')
             logger.info({
                 label: loggerLabel,
                 message: 'Platform Changed. Building again.'
@@ -404,6 +436,8 @@ async function runExpo(previewUrl, clean, authToken) {
         if (!isWebPreview) {
             launchExpo(projectDir);
         }
+        taskLogger.info(`generated esbuild web app at ${projectDir}`);
+        taskLogger.succeed(chalk.green("Esbuild finished ") + chalk.blue(`Service proxy launched at ${localHostUrl}`));
         isExpoPreviewContainer = await isExpoWebPreviewContainer(previewUrl);
         watchProjectChanges(previewUrl, () => {
             const startTime = Date.now();
@@ -413,6 +447,7 @@ async function runExpo(previewUrl, clean, authToken) {
                     label: loggerLabel,
                     message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
                 });
+                taskLogger.info(`Sync Time: ${(Date.now() - startTime)/ 1000}s.`);
             })
             .then(() => transpile(projectDir, previewUrl, true))
             .then(() => {
@@ -420,6 +455,7 @@ async function runExpo(previewUrl, clean, authToken) {
                     label: loggerLabel,
                     message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
                 });
+                taskLogger.info(`Total Time: ${(Date.now() - startTime)/ 1000}s.`);
             });
         });
         watchForPlatformChanges(() => transpile(projectDir, previewUrl, false));
@@ -439,6 +475,7 @@ async function sync(previewUrl, clean) {
     if (useProxy) {
         launchServiceProxy(projectDir, previewUrl);
     }
+    taskLogger.succeed(chalk.green("Sync finished ") + chalk.blue(`generated expo project at : ${getExpoProjectDir(projectDir)}`));
     isExpoPreviewContainer = await isExpoWebPreviewContainer(previewUrl);
     watchProjectChanges(previewUrl, () => {
         const startTime = Date.now();
@@ -448,15 +485,27 @@ async function sync(previewUrl, clean) {
                 label: loggerLabel,
                 message: `Sync Time: ${(Date.now() - startTime)/ 1000}s.`
             });
+            taskLogger.info(`Sync Time: ${(Date.now() - startTime)/ 1000}s.`);
         }).then(() => transpile(projectDir, previewUrl, true))
         .then(() => {
             logger.info({
                 label: loggerLabel,
                 message: `Total Time: ${(Date.now() - startTime)/ 1000}s.`
             });
+            taskLogger.info(`Total Time: ${(Date.now() - startTime)/ 1000}s.`);
         });
     });
-    watchForPlatformChanges(() => transpile(projectDir, previewUrl, false));
+    watchForPlatformChanges(() => { 
+        const startTime = Date.now();
+        return transpile(projectDir, previewUrl, false).then(() => {
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+            logger.info({
+                label: loggerLabel,
+                message: `Total Time: ${duration}s.`
+            });
+            taskLogger.info(`Total Time: ${duration}s.`);
+        });
+    });
 }
 
 async function runNative(previewUrl, platform, clean) {

@@ -9,6 +9,9 @@ const qs = require('qs');
 const semver = require('semver');
 const { exec } = require('./exec');
 const { unzip } = require('./zip');
+const taskLogger = require('./custom-logger/task-logger').spinnerBar;
+const {previewSteps} = require('./custom-logger/steps');
+const chalk = require('chalk');
 //const PULL_URL = '/studio/services/projects/${projectId}/vcs/remoteChanges';
 const STORE_KEY = 'user.auth.token';
 const MAX_REQUEST_ALLOWED_TIME = 5 * 60 * 1000;
@@ -48,6 +51,8 @@ async function downloadProject(projectId, config, projectDir) {
     try {
     const start = Date.now();
     logger.info({label: loggerLabel,message: 'downloading the project...'});
+    taskLogger.start(previewSteps[2].start);
+    taskLogger.setTotal(previewSteps[2].total)
     const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
     if (semver.lt(WM_PLATFORM_VERSION, '11.4.0')) {
         const res = await axios.get(`${config.baseUrl}/studio/services/projects/${projectId}/vcs/gitInit`, {
@@ -56,11 +61,14 @@ async function downloadProject(projectId, config, projectDir) {
                 cookie: config.authCookie
             }
          });
+        taskLogger.incrementProgress(2);
         await downloadFile(res, tempFile);
+        taskLogger.incrementProgress(1);
         const gitDir = path.join(projectDir, '.git');
         fs.mkdirpSync(gitDir);
         await unzip(tempFile, gitDir);
         await exec('git', ['restore', '.'], {cwd: projectDir});
+        taskLogger.incrementProgress(1);
     }
     else{
         const gitInfo = await axios.get(`${config.baseUrl}/studio/services/projects/${projectId}/vcs/gitBare`, {
@@ -69,6 +77,7 @@ async function downloadProject(projectId, config, projectDir) {
                 cookie: config.authCookie
             }
          });
+         taskLogger.incrementProgress(2);
         if(gitInfo.status !== 200){
             throw new Error('failed to download the project');
         }
@@ -80,6 +89,7 @@ async function downloadProject(projectId, config, projectDir) {
                 cookie: config.authCookie
             }
         })
+        taskLogger.incrementProgress(2);
         await downloadFile(res, tempFile);
         const tempDir = path.join(`${os.tmpdir()}`, `project_${Date.now()}`);
         fs.mkdirpSync(tempDir);
@@ -95,22 +105,38 @@ async function downloadProject(projectId, config, projectDir) {
             await exec('git', ['clone', "-b", "master", tempDir, projectDir]);
         }
         fs.rmSync(tempDir, { recursive: true, force: true });
+        taskLogger.incrementProgress(1);
     }
     logger.info({
         label: loggerLabel,
         message: `downloaded the project in (${Date.now() - start} ms).`
     });
+    taskLogger.incrementProgress(1);
+    taskLogger.succeed(`${previewSteps[2].succeed} in (${Date.now() - start} ms).`);
     fs.unlink(tempFile);
+        
+    const logDirectory = projectDir + '/output/logs/';
+    fs.mkdirSync(logDirectory, {
+        recursive: true
+    });
+    logger.info({
+        label: loggerLabel,
+        message: 'log directory = '+ logDirectory
+    });
+    global.logDirectory = logDirectory;
+    logger.setLogDirectory(logDirectory);
+    taskLogger.info("Full log details can be found in: " + chalk.blue(logDirectory));
     } catch (e) {
         logger.info({
             label: loggerLabel,
             message: e+` The download of the project has encountered an issue. Please ensure that the preview is active.`
         });
+        taskLogger.fail(e+` ${previewSteps[2].fail}`)
     }
 }
 
 async function gitResetAndPull(tempDir, projectDir){
-    await exec('git', ['clean', '-fd'], {cwd: projectDir});
+    await exec('git', ['clean', '-fd', '-e', 'output'], {cwd: projectDir});
     await exec('git', ['fetch', path.join(tempDir, 'remoteChanges.bundle'), 'refs/heads/master'], {cwd: projectDir});
     await exec('git', ['reset', '--hard', 'FETCH_HEAD'], {cwd: projectDir});
 }
@@ -122,7 +148,7 @@ async function pullChanges(projectId, config, projectDir) {
     });
     const headCommitId = output[0];
     logger.debug({label: loggerLabel, message: 'HEAD commit id is ' + headCommitId});
-    logger.info({label: loggerLabel, message: 'pulling new changes from studio...'});
+    taskLogger.start('pulling new changes from studio...');
     const tempDir = path.join(`${os.tmpdir()}`, `changes_${Date.now()}`);
     if (semver.lt(WM_PLATFORM_VERSION, '11.4.0')) {
         const tempFile = `${os.tmpdir()}/changes_${Date.now()}.zip`;
@@ -168,11 +194,30 @@ async function pullChanges(projectId, config, projectDir) {
         fs.unlink(tempFile);
     }
     fs.rmSync(tempDir, { recursive: true, force: true });
+    taskLogger.succeed(`pulled new changes from studio - head commit id ${headCommitId}`);
+    let filesChanged = await exec('git', ['diff','--name-status', 'HEAD~1', 'HEAD'], {cwd: projectDir});
+    filesChanged = filesChanged.filter(Boolean);
+    const changes = filesChanged.map((line) => {
+      const [status, ...fileParts] = line.trim().split(/\s+/);
+      const filePath = fileParts.join(' ').replace(/^.*webapp\//, '');
+      return { status, filePath };
+    });
+  
+    const formatted = changes.map(({ status, filePath }) => {
+        const color = status === 'A' ? chalk.green
+                    : status === 'D' ? chalk.red
+                    : status === 'M' ? chalk.yellow
+                    : chalk.cyan;
+    
+        return `${color(status)}:${color(filePath)}`;
+      });
+      taskLogger.info("Files changed: \n\t" + formatted.join('\n\t'));
     } catch (e) {
         logger.info({
             label: loggerLabel,
             message: e+` The attempt to execute "git pull" was unsuccessful. Please verify your connections.`
         });
+        taskLogger.succeed( e+` The attempt to execute "git pull" was unsuccessful. Please verify your connections.`);
     }
 }
 
@@ -325,6 +370,8 @@ async function setup(previewUrl, projectName, authToken) {
         config.authCookie = await authenticateWithToken(config, true);
     }
     global.localStorage.setItem(STORE_KEY, config.authCookie);
+    taskLogger.incrementProgress(1);
+    taskLogger.succeed(previewSteps[1].succeed);
     return config;
 }
 
