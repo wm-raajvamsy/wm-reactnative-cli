@@ -21,7 +21,9 @@ updateNotifier({
 const prompt = require('prompt');
 const logger = require('./src/logger');
 const {calculateTotalSteps, androidBuildSteps, previewSteps} = require('./src/custom-logger/steps');
-const {overallProgressBar} = require('./src/custom-logger/progress-bar')
+const {overallProgressBar} = require('./src/custom-logger/progress-bar');
+const yargs = require('yargs');
+const { expoUpgrade } = require('./src/expo-upgrade');
 const taskLogger = require('./src/custom-logger/task-logger').spinnerBar;
 
 global.rootDir = process.env.WM_REACTNATIVE_CLI || `${os.homedir()}/.wm-reactnative-cli`;
@@ -171,6 +173,24 @@ const args = require('yargs')
                 default: false,
                 type: 'boolean'
             });
+    })
+    .command('expo-upgrade', 'upgrade expo version', yargs => {
+        yargs.positional('src', {
+            describe: 'path of React Native project',
+            default: './',
+            type: 'string',
+            normalize: true
+        })
+        .positional('expo-version', {
+            describe: 'version of expo to upgrade',
+            type: 'string'
+        })
+        .positional('gemini-key', {
+            describe: 'Gemini Key to authenticate with Gemini',
+            type: 'string'
+        })
+    }, (args) => {
+        expoUpgrade(args);
     })
     .command('eject expo [src] [dest]',
         'Removes Expo and generate pure react native project.',
