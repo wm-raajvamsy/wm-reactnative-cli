@@ -78,31 +78,6 @@ async function updatePackageJsonFile(path) {
     }
 }
 
-function updateAppJsonFile(src) {
-    const path = (src || config.src) + 'app.json';
-    logger.info({
-        label: loggerLabel,
-        message: 'path at app.json ' + path
-    })
-    try {
-        if (fs.existsSync(path)) {
-            let data = fs.readFileSync(path, 'utf8');
-            const jsonData = JSON.parse(data);
-            jsonData['expo']['name'] = config.metaData.name;
-            jsonData['expo']['slug'] = config.metaData.name;
-            jsonData['expo']['android']['package'] = config.metaData.id;
-            jsonData['expo']['ios']['bundleIdentifier'] = config.metaData.id;
-            jsonData['expo']['jsEngine'] = config.metaData.preferences.enableHermes ? 'hermes' : 'jsc';
-            jsonData['expo']['icon'] = config.metaData.icon.src;
-            jsonData['expo']['splash']['image'] = config.metaData.splash.src;
-            jsonData['expo']['android']['adaptiveIcon']['foregroundImage'] = config.metaData.icon.src;
-            fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
-        }
-    } catch (e) {
-        resolve('error', e);
-    }
-}
-
  async function build(args) {
     const directories = await setupBuildDirectory(args.src, args.dest, args.platform);
     if (!directories) {
@@ -119,7 +94,7 @@ function updateAppJsonFile(src) {
     if (config.metaData.icon.src.startsWith('resources')) {
         config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
     }
-    if (config.metaData.splash.src.startsWith('resources')) {
+    if (config.metaData.splash.src?.startsWith('resources')) {
         config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
     }
 
@@ -468,7 +443,6 @@ async function prepareProject(args) {
         taskLogger.succeed(androidBuildSteps[1].succeed);
         taskLogger.setTotal(androidBuildSteps[2].total);
         taskLogger.start(androidBuildSteps[2].start);
-        updateAppJsonFile(config.src);
         logger.info({
             label: loggerLabel,
             message: 'app.json updated.... ' + args.dest
