@@ -447,7 +447,6 @@ async function prepareProject(args) {
             label: loggerLabel,
             message: 'app.json updated.... ' + args.dest
         })
-        await updatePackageJsonFile(config.src + 'package.json');
         taskLogger.incrementProgress(0.2);
         try{
             await exec('yarn', ['install'], {
