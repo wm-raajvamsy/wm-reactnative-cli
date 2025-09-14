@@ -329,7 +329,6 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         const pathArr = xcworkspacePath.split('/');
         const xcworkspaceFileName = pathArr[pathArr.length - 1];
         const fileName = xcworkspaceFileName.split('.')[0];
-        removePushNotifications(config.src, fileName);
         taskLogger.incrementProgress(0.4);
         let _buildType;
         if (args.buildType === 'development' || args.buildType === 'debug') {
