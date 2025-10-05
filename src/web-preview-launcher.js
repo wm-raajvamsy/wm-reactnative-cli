@@ -233,22 +233,7 @@ async function getCodeGenPath(projectDir) {
         if(semver.eq(packageJson["dependencies"]["expo"], "52.0.17")){
             packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
         }
-        if(semver.eq(packageJson["dependencies"]["expo"], "54.0.8") && !fs.existsSync(path.resolve(`${expoProjectDir}/package-lock.json`))){
-            await exec('npm', ['install'], {
-                cwd: templatePackageJsonDir
-            })
-            await exec('rm', ['-rf', 'node_modules'], {
-                cwd: templatePackageJsonDir
-            })
-            await exec('cp', ['-rf', 'package-lock.json', `${__dirname}/../templates/package/packageLock.json`], {
-                cwd: templatePackageJsonDir
-            })
-            await exec('rm', ['-rf', 'package-lock.json'], {
-                cwd: templatePackageJsonDir
-            })
-            await exec('npm', ['run', 'build'], {
-                cwd: `${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen`
-            })
+        if(semver.eq(packageJson["dependencies"]["expo"], "54.0.8")){
             packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
         }
     } else {
@@ -307,15 +292,15 @@ async function installDependencies(projectDir) {
         overwrite: true
         });
     const nodeModulesDir = `${expoDir}/node_modules/@wavemaker/app-rn-runtime`;
-    // To remove openBrowser()
-    readAndReplaceFileContent(`${expoDir}/node_modules/open/index.js`, (c) => c.replace("const subprocess", 'return;\n\nconst subprocess'));
-    if(expoVersion != '54.0.8'){
+    if(expoVersion != '54.0.12'){
+        // To remove openBrowser()
+        readAndReplaceFileContent(`${expoDir}/node_modules/open/index.js`, (c) => c.replace("const subprocess", 'return;\n\nconst subprocess'));
         readAndReplaceFileContent(`${expoDir}/node_modules/@expo/cli/build/src/utils/open.js`, (c) => c.replace('if (process.platform !== "win32")', 'return;\n\n if (process.platform !== "win32")'));
         readAndReplaceFileContent(`${nodeModulesDir}/core/base.component.js`, (c) => c.replace(/\?\?/g, '||'));
         readAndReplaceFileContent(`${nodeModulesDir}/components/advanced/carousel/carousel.component.js`, (c) => c.replace(/\?\?/g, '||'));
         readAndReplaceFileContent(`${nodeModulesDir}/components/input/rating/rating.component.js`, (c) => c.replace(/\?\?/g, '||'));
     }
-    if(expoVersion != '52.0.17' && expoVersion != '54.0.8'){
+    if(expoVersion != '52.0.17' && expoVersion != '54.0.12'){
         readAndReplaceFileContent(`${expoDir}/node_modules/expo-camera/build/useWebQRScanner.js`, (c) => {
             if (c.indexOf('@koale/useworker') > 0) {
                 return fs.readFileSync(`${__dirname}/../templates/expo-camera-patch/useWebQRScanner.js`, {
@@ -329,7 +314,7 @@ async function installDependencies(projectDir) {
         if(expoVersion == '52.0.17'){
             return content.replace(/src\s*:\s*url\(\$\{resource\.uri\}\);/g, 'src:url(.${resource.uri.replace("//rn-bundle//","/")});');
         }
-        if(expoVersion == '54.0.8'){
+        if(expoVersion == '54.0.12'){
             content = content.replace(
                 /src:url\("(\$\{resource\.uri\})"\)/g, 
                 'src:url("${resource.uri.replace(\'//rn-bundle//\',\'/\')}")'

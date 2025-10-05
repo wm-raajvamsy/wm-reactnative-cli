@@ -140,11 +140,16 @@ function getIpAddress() {
 async function updatePackageJsonFile(path) {
     let data = fs.readFileSync(path, 'utf-8');
     const jsonData = JSON.parse(data);
-    if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
-        jsonData['dependencies']['expo-file-system'] = '15.2.2'
+    if(semver.eq(jsonData["dependencies"]["expo"], "54.0.12")){
+        //do nothing
     }
-    if(isWebPreview){
-        jsonData['dependencies']['react-native-svg'] = '13.4.0';
+    else{
+        if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
+            jsonData['dependencies']['expo-file-system'] = '15.2.2'
+        }
+        if(isWebPreview){
+            jsonData['dependencies']['react-native-svg'] = '13.4.0';
+        }    
     }
     fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
     logger.info({
@@ -168,23 +173,12 @@ async function transpile(projectDir, previewUrl, incremental) {
             if(semver.eq(packageJson["dependencies"]["expo"], "52.0.17")){
                 packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
             } 
-            if(semver.eq(packageJson["dependencies"]["expo"], "54.0.8") && !fs.existsSync(path.resolve(`${expoProjectDir}/package-lock.json`))){
-                await exec('npm', ['install'], {
-                    cwd: templatePackageJsonDir
-                })
-                await exec('rm', ['-rf', 'node_modules'], {
-                    cwd: templatePackageJsonDir
-                })
-                await exec('cp', ['-rf', 'package-lock.json', `${__dirname}/../templates/package/packageLock.json`], {
-                    cwd: templatePackageJsonDir
-                })
-                await exec('rm', ['-rf', 'package-lock.json'], {
-                    cwd: templatePackageJsonDir
-                })
-                await exec('npm', ['run', 'build'], {
-                    cwd: `${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen`
-                })
-                packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+            if(semver.eq(packageJson["dependencies"]["expo"], "54.0.12")){
+                if(isWebPreview){
+                    packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+                } else {
+                    packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+                }
             }
             taskLogger.incrementProgress(2);
         } else {
