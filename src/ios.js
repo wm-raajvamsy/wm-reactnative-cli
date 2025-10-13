@@ -337,14 +337,16 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
             await readAndReplaceFileContent(`${config.src}ios/${projectName}.xcodeproj/project.pbxproj`, (content) => {
                 return content.replace('SKIP_BUNDLING=1', 'FORCE_BUNDLING=1')
             });
-            await readAndReplaceFileContent(`${config.src}ios/${projectName}/AppDelegate.mm`, (content) => {
-                return content.replace(
-                    'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
-                    'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
-                    .replace(
-                        'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];',
-                        'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];');
-            });
+            if(fs.existsSync(`${config.src}ios/${projectName}/AppDelegate.mm`)) {
+                await readAndReplaceFileContent(`${config.src}ios/${projectName}/AppDelegate.mm`, (content) => {
+                    return content.replace(
+                        'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
+                        'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
+                        .replace(
+                            'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];',
+                            'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];');
+                });
+            }
         } else {
             _buildType = 'Release';
         }
