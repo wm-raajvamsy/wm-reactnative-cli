@@ -140,11 +140,16 @@ function getIpAddress() {
 async function updatePackageJsonFile(path) {
     let data = fs.readFileSync(path, 'utf-8');
     const jsonData = JSON.parse(data);
-    if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
-        jsonData['dependencies']['expo-file-system'] = '15.2.2'
+    if(semver.eq(jsonData["dependencies"]["expo"], "54.0.12")){
+        //do nothing
     }
-    if(isWebPreview){
-        jsonData['dependencies']['react-native-svg'] = '13.4.0';
+    else{
+        if (jsonData['dependencies']['expo-file-system'] === '^15.1.1') {
+            jsonData['dependencies']['expo-file-system'] = '15.2.2'
+        }
+        if(isWebPreview){
+            jsonData['dependencies']['react-native-svg'] = '13.4.0';
+        }    
     }
     fs.writeFileSync(path, JSON.stringify(jsonData), 'utf-8');
     logger.info({
@@ -159,13 +164,22 @@ async function transpile(projectDir, previewUrl, incremental) {
         taskLogger.setTotal(previewSteps[3].total);
         let codegen = process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE;
         let packageLockJsonFile = '';
+        const expoProjectDir = getExpoProjectDir(projectDir);
         if (codegen) {
             codegen = `${codegen}/wavemaker-rn-codegen/build/index.js`;
             let templatePackageJsonFile = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/package.json`);
+            let templatePackageJsonDir = path.resolve(`${process.env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen/src/templates/project/`);
             const packageJson = require(templatePackageJsonFile);
             if(semver.eq(packageJson["dependencies"]["expo"], "52.0.17")){
                 packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
             } 
+            if(semver.eq(packageJson["dependencies"]["expo"], "54.0.12")){
+                if(isWebPreview){
+                    packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+                } else {
+                    packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
+                }
+            }
             taskLogger.incrementProgress(2);
         } else {
             const wmProjectDir = getWmProjectDir(projectDir);
@@ -203,7 +217,6 @@ async function transpile(projectDir, previewUrl, incremental) {
                 ...(rnAppPath ? [`--rnAppPath=${rnAppPath}`] : []),
                 getWmProjectDir(projectDir), getExpoProjectDir(projectDir)]);
         taskLogger.incrementProgress(2);
-        const expoProjectDir = getExpoProjectDir(projectDir);
         const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
         const config = fs.readJSONSync(configJSONFile);
         if(packageLockJsonFile){
