@@ -171,11 +171,7 @@ async function invokeiosBuild(args) {
         const username = await getUsername();
         const keychainName = `wm-reactnative-${random}.keychain`;
         const provisionuuid =  await extractUUID(provisionalFile);
-        let codeSignIdentity = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
-            shell: true
-        });
-        codeSignIdentity = codeSignIdentity[1];
-        let useModernBuildSystem = 'YES';
+        
         logger.info({
             label: loggerLabel,
             message: `provisional UUID : ${provisionuuid}`
@@ -199,6 +195,57 @@ async function invokeiosBuild(args) {
         });
         taskLogger.info(`copied provisionalFile (${provisionalFile}).`);
         const removeKeyChain = await importCertToKeyChain(keychainName, certificate, certificatePassword);
+        
+        // Extract code signing identity from the keychain after importing
+        let codeSignIdentity;
+        try {
+            const identities = await exec('security', ['find-identity', '-v', '-p', 'codesigning', keychainName], {log: false});
+            // Find the first valid identity line (format: "1) HASH "Certificate Name"")
+            const identityLine = identities.find(line => line.match(/\d+\)\s+[A-F0-9]+\s+".*"/));
+            if (identityLine) {
+                // Extract the certificate name from quotes
+                const match = identityLine.match(/"([^"]+)"/);
+                if (match && match[1]) {
+                    codeSignIdentity = match[1];
+                    logger.info({
+                        label: loggerLabel,
+                        message: `Code Sign Identity: ${codeSignIdentity}`
+                    });
+                    taskLogger.info(`Code Sign Identity: ${codeSignIdentity}`);
+                } else {
+                    throw new Error('Could not parse certificate name from identity');
+                }
+            } else {
+                throw new Error('No valid code signing identity found in keychain');
+            }
+        } catch (e) {
+            logger.error({
+                label: loggerLabel,
+                message: `Failed to extract code signing identity: ${e.message}`
+            });
+            // Fallback to openssl method
+            logger.info({
+                label: loggerLabel,
+                message: 'Attempting fallback method using openssl...'
+            });
+            try {
+                let opensslOutput = await exec(`openssl pkcs12 -in ${certificate} -passin pass:${certificatePassword} -nodes | openssl x509 -noout -subject -nameopt multiline | grep commonName | sed -n 's/ *commonName *= //p'`, null, {
+                    shell: true
+                });
+                // Filter out any error/usage lines and get the actual certificate name
+                codeSignIdentity = opensslOutput.find(line => line && !line.includes('usage:') && !line.includes('pkcs12'));
+                if (!codeSignIdentity) {
+                    throw new Error('Openssl fallback failed - no valid certificate name found');
+                }
+                logger.info({
+                    label: loggerLabel,
+                    message: `Code Sign Identity (via openssl): ${codeSignIdentity}`
+                });
+            } catch (opensslError) {
+                throw new Error(`Failed to extract code signing identity: ${opensslError.message}`);
+            }
+        }
+        let useModernBuildSystem = 'YES';
 
         try {
             // XCode14 issue https://github.com/expo/expo/issues/19759
@@ -330,26 +377,75 @@ async function xcodebuild(args, CODE_SIGN_IDENTITY_VAL, PROVISIONING_UUID, DEVEL
         const xcworkspaceFileName = pathArr[pathArr.length - 1];
         const fileName = xcworkspaceFileName.split('.')[0];
         taskLogger.incrementProgress(0.4);
+        
         let _buildType;
         if (args.buildType === 'development' || args.buildType === 'debug') {
             _buildType = 'Debug';
-            // Instead of loading from metro server, load it from the bundle.
-            await readAndReplaceFileContent(`${config.src}ios/${projectName}.xcodeproj/project.pbxproj`, (content) => {
-                return content.replace('SKIP_BUNDLING=1', 'FORCE_BUNDLING=1')
-            });
-            if(fs.existsSync(`${config.src}ios/${projectName}/AppDelegate.mm`)) {
-                await readAndReplaceFileContent(`${config.src}ios/${projectName}/AppDelegate.mm`, (content) => {
-                    return content.replace(
-                        'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
-                        'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
-                        .replace(
-                            'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];',
-                            'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];');
+            
+            // Get Expo SDK version from package.json
+            const packageJson = JSON.parse(fs.readFileSync(`${config.src}package.json`, 'utf8'));
+            const expoVersion = packageJson.dependencies?.expo ? parseInt(packageJson.dependencies.expo.replace(/[^0-9]/g, '').substring(0, 2)) : 0;
+            
+            if (expoVersion >= 54) {
+                // Expo 54+: Modify bundling script to force bundling with --dev false
+                logger.info({
+                    label: loggerLabel,
+                    message: 'Expo 54+: Configuring production mode bundle for Debug build...'
                 });
+                
+                await readAndReplaceFileContent(`${config.src}ios/${projectName}.xcodeproj/project.pbxproj`, (content) => {
+                    // Replace SKIP_BUNDLING with FORCE_BUNDLING
+                    content = content.replace('SKIP_BUNDLING=1', 'FORCE_BUNDLING=1');
+                    
+                    // Add --dev false flag to the bundling command by setting EXTRA_PACKAGER_ARGS
+                    // This is the standard way React Native handles additional bundler arguments
+                    content = content.replace(
+                        'if [[ \\"$CONFIGURATION\\" = *Debug* ]]; then\\n  export FORCE_BUNDLING=1\\nfi',
+                        'if [[ \\"$CONFIGURATION\\" = *Debug* ]]; then\\n  export FORCE_BUNDLING=1\\n  export EXTRA_PACKAGER_ARGS=\\"--dev false\\"\\nfi'
+                    );
+                    
+                    return content;
+                });
+                
+                // Modify AppDelegate.swift to load from embedded bundle
+                const appDelegateSwiftPath = `${config.src}ios/${projectName}/AppDelegate.swift`;
+                if (fs.existsSync(appDelegateSwiftPath)) {
+                    await readAndReplaceFileContent(appDelegateSwiftPath, (content) => {
+                        return content.replace(
+                            `#if DEBUG
+    return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: ".expo/.virtual-metro-entry")
+#else
+    return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+#endif`,
+                            `return Bundle.main.url(forResource: "main", withExtension: "jsbundle")`
+                        );
+                    });
+                }
+                
+                logger.info({
+                    label: loggerLabel,
+                    message: 'Expo 54+: Configured to bundle with production mode (no Metro/devtools)'
+                });
+            } else {
+                // Expo 52 and below: Use legacy Objective-C AppDelegate.mm modification
+                await readAndReplaceFileContent(`${config.src}ios/${projectName}.xcodeproj/project.pbxproj`, (content) => {
+                    return content.replace('SKIP_BUNDLING=1', 'FORCE_BUNDLING=1');
+                });
+                if (fs.existsSync(`${config.src}ios/${projectName}/AppDelegate.mm`)) {
+                    await readAndReplaceFileContent(`${config.src}ios/${projectName}/AppDelegate.mm`, (content) => {
+                        return content.replace(
+                            'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];',
+                            'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];')
+                            .replace(
+                                'return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];',
+                                'return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];');
+                    });
+                }
             }
         } else {
             _buildType = 'Release';
         }
+        
         const env = {
             RCT_NO_LAUNCH_PACKAGER: 1
         };

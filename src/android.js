@@ -214,10 +214,10 @@ function updateSettingsGradleFile(appName) {
 
 async function createJSBundle() {
     fs.mkdirpSync(config.src + '/android/app/src/main/assets');
-    return await exec('npx', ['react-native', 'bundle', '--platform',  'android',
+    return await exec('npx', ['expo', 'export:embed', '--platform',  'android',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'android/app/src/main/assets/index.android.bundle',
-            '--assets-dest', 'android/app/src/main/res/'], {
+            '--assets-dest', 'android/app/src/main/res/', '--reset-cache'], {
         cwd: config.src
     });
 }
@@ -350,11 +350,11 @@ async function embed(args) {
     fs.mkdirpSync(`${config.src}/android-embed/rnApp/src/main/assets`);
     await readAndReplaceFileContent(
         `${args.dest}/node_modules/@wavemaker/app-rn-runtime/components/dialogs/dialogcontent/dialogcontent.component.js`,
-        (content) => content.replace('height', 'maxHeight'));    
-    await exec('npx', ['react-native', 'bundle', '--platform',  'android',
+        (content) => content.replace('height', 'maxHeight'));
+    await exec('npx', ['expo', 'export:embed', '--platform',  'android',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'android-embed/rnApp/src/main/assets/index.android.bundle',
-            '--assets-dest', 'android-embed/rnApp/src/main/res/'], {
+            '--assets-dest', 'android-embed/rnApp/src/main/res/', '--reset-cache'], {
         cwd: config.src
     });
     logger.info({
