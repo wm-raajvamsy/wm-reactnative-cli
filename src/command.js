@@ -449,7 +449,7 @@ async function prepareProject(args) {
         })
         taskLogger.incrementProgress(0.2);
         try{
-            await exec('yarn', ['install'], {
+            await exec('npm', ['install'], {
                 cwd: config.src
             });
             taskLogger.succeed("All dependencies installed successfully.")
