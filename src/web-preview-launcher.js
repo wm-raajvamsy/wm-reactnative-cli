@@ -268,7 +268,7 @@ async function getCodeGenPath(projectDir) {
             packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
         }
     } else {
-        codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
+        codegen = `${projectDir}/target/codegen/node_modules/@wavemaker-ai/rn-codegen`;
         if (!fs.existsSync(`${codegen}/index.js`)) {
             const temp = projectDir + '/target/codegen';
             fs.mkdirSync(temp, {recursive: true});
@@ -279,7 +279,11 @@ async function getCodeGenPath(projectDir) {
             var uiVersion = ((pom 
                 && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
                 || [])[1];
-            await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
+            await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-codegen@${uiVersion}`], {
+                cwd: temp
+            });
+            rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker-ai/rn-app`;
+            await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-app@${uiVersion}`], {
                 cwd: temp
             });
             let version = semver.coerce(uiVersion).version;
