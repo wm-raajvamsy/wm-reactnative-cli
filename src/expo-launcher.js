@@ -307,6 +307,10 @@ function getWmProjectDir(projectDir) {
     return `${projectDir}/src/main/webapp`;
 }
 
+async function getAppName(previewUrl) {
+    return (await axios.get(`${previewUrl}/wm_rn_config.json`)).data.name;
+}
+
 function getExpoProjectDir(projectDir) {
     if (isWebPreview) {
         return `${projectDir}/target/generated-rn-web-app`;
@@ -366,7 +370,7 @@ async function watchProjectChanges(previewUrl, onChange, lastModifiedOn) {
                     'if-modified-since' : lastModifiedOn || new Date().toString()
                 }
             }).catch((e) => e.response);
-            if (response.status === 200 && response.data.indexOf('<title>WaveMaker Preview</title>') > 0) {
+            if (response.status === 200 && response.data.indexOf(`<title>${await getAppName(previewUrl)}</title>`) > 0) {
                 lastModifiedOn = response.headers['last-modified'];
                 onChange();
             }
