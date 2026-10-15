@@ -41,10 +41,10 @@ async function build(args) {
     config.metaData = await readWmRNConfig(args.src);
 
     if (config.metaData.icon.src.startsWith('resources')) {
-        config.metaData.icon.src = 'assets/' + config.metaData.icon.src;
+        config.metaData.icon.src = 'assets/' + path.basename(config.metaData.icon.src);
     }
     if (config.metaData.splash.src?.startsWith('resources')) {
-        config.metaData.splash.src = 'assets/' + config.metaData.splash.src;
+        config.metaData.splash.src = 'assets/' + path.basename(config.metaData.splash.src);
     }
 
      config.platform = args.platform;
