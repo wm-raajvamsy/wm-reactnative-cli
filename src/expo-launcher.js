@@ -46,7 +46,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     if (isWebPreview) {
         const app = express();
         app.use('/rn-bundle', express.static(wmProjectDir + '/rn-bundle'));
-        app.get("*", (req, res) => {
+        app.get(/.*/, (req, res) => {
             res.send(`
             <html>
                 <head>

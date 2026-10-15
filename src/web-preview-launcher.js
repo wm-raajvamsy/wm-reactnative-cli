@@ -282,14 +282,10 @@ async function getCodeGenPath(projectDir) {
             await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-codegen@${uiVersion}`], {
                 cwd: temp
             });
-            rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker-ai/rn-app`;
-            await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-app@${uiVersion}`], {
-                cwd: temp
-            });
             let version = semver.coerce(uiVersion).version;
             if(semver.gte(version, MIN_RN_APP_SUPPORT_VERSION)){
-                rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
-                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+                rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker-ai/rn-app`;
+                await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-app@${uiVersion}`], {
                     cwd: temp
                 });
             }
