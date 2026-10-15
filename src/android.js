@@ -11,6 +11,7 @@ const {
     checkForAndroidStudioAvailability
 } = require('./requirements');
 const { readAndReplaceFileContent } = require('./utils');
+const { getAppScope } = require('./wm-scope');
 const taskLogger = require('./custom-logger/task-logger').spinnerBar;
 const {androidBuildSteps} = require('./custom-logger/steps');
 
@@ -356,11 +357,7 @@ async function embed(args) {
         (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));    
     fs.mkdirpSync(`${config.src}/android-embed/rnApp/src/main/assets`);
     const nodeModules = `${args.dest}/node_modules`;
-    const wmScope = fs.existsSync(`${nodeModules}/@wavemaker`)
-        ? '@wavemaker'
-        : fs.existsSync(`${nodeModules}/@wavemaker-ai`)
-            ? '@wavemaker-ai'
-            : null;
+    const wmScope = getAppScope(args.dest);
     if (wmScope) {
         const dialogContentPath = `${nodeModules}/${wmScope}/app-rn-runtime/components/dialogs/dialogcontent/dialogcontent.component.js`;
         if (fs.existsSync(dialogContentPath)) {

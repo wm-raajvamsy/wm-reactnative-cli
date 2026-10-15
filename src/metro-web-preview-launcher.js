@@ -11,6 +11,7 @@ const { exec } = require('./exec');
 const taskLogger = require('./custom-logger/task-logger').spinnerBar;
 const { previewSteps } = require('./custom-logger/steps');
 const launcher = require('./expo-launcher');
+const { getProjectScope } = require('./wm-scope');
 const { getWmProjectDir, getExpoProjectDir } = launcher;
 
 const loggerLabel = 'metro-web-preview';
@@ -280,13 +281,15 @@ async function build(projectDir, incremental) {
         const env = process.env;
         const appDir = getExpoProjectDir(projectDir);
         const localRepo = env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE && `${env.WAVEMAKER_STUDIO_FRONTEND_CODEBASE}/wavemaker-rn-codegen`;
-        const codegen = localRepo ? `${localRepo}/build` : `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
+        const scope = localRepo
+            ? fs.readJSONSync(`${localRepo}/build/package.json`).name.split('/')[0]
+            : getProjectScope(projectDir);
+        const codegen = localRepo ? `${localRepo}/build` : `${projectDir}/target/codegen/node_modules/${scope}/rn-codegen`;
         const uiVersion = getUiVersion(projectDir);
         if (!fs.existsSync(`${codegen}/index.js`)) {
             fs.outputJSONSync(`${projectDir}/target/codegen/package.json`, { private: true });
-            await exec('npm', ['install', '--no-save', `@wavemaker/rn-codegen@${uiVersion}`], { cwd: `${projectDir}/target/codegen` });
+            await exec('npm', ['install', '--no-save', `${scope}/rn-codegen@${uiVersion}`], { cwd: `${projectDir}/target/codegen` });
         }
-        const scope = fs.readJSONSync(`${codegen}/package.json`).name.split('/')[0];
         if (localRepo) {
             // Install local `file:` packages as copies: Metro won't follow symlinks out of its watch roots.
             env.npm_config_install_links = 'true';

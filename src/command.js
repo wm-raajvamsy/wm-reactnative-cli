@@ -17,6 +17,7 @@ const config = require('./config');
 const ios = require('./ios');
 const { resolve } = require('path');
 const { isWindowsOS, readAndReplaceFileContent, getDestPathForWindows } = require('./utils');
+const { getAppScope, DEFAULT_SCOPE } = require('./wm-scope');
 const chalk = require('chalk');
 const taskLogger = require('./custom-logger/task-logger').spinnerBar;
 const loggerLabel = 'wm-reactnative-cli';
@@ -326,7 +327,7 @@ async function ejectProject(args) {
         });
         if (args.localrnruntimepath) {
             const linkFolderPath =
-            config.src + `node_modules/@wavemaker-ai/app-rn-runtime`;
+            config.src + `node_modules/${getAppScope(config.src) || DEFAULT_SCOPE}/app-rn-runtime`;
             // using removeSync when target is directory and unlinkSync works when target is file.
             if (fs.existsSync(linkFolderPath)) {
                 fs.removeSync(linkFolderPath);

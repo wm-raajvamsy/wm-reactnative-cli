@@ -26,6 +26,8 @@ const {calculateTotalSteps, androidBuildSteps, previewSteps} = require('./src/cu
 const {overallProgressBar} = require('./src/custom-logger/progress-bar')
 const taskLogger = require('./src/custom-logger/task-logger').spinnerBar;
 
+process.env.PUPPETEER_SKIP_DOWNLOAD = process.env.PUPPETEER_SKIP_DOWNLOAD || 'true';
+
 global.rootDir = process.env.WM_REACTNATIVE_CLI || `${os.homedir()}/.wm-reactnative-cli`;
 global.localStorage = new LocalStorage(`${global.rootDir}/.store`);
 // src is the web react native project zip

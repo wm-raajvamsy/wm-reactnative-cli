@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const {VERSIONS, hasValidExpoVersion, EXPO_SDK_54_0_12, EXPO_SDK_56, MIN_RN_APP_SUPPORT_VERSION} = require('./requirements');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
+const { getProjectScope } = require('./wm-scope');
 const path = require('path');
 const semver = require('semver');
 //const openTerminal =  require('open-terminal').default;
@@ -185,7 +186,8 @@ async function transpile(projectDir, previewUrl, incremental) {
             taskLogger.incrementProgress(2);
         } else {
             const wmProjectDir = getWmProjectDir(projectDir);
-            codegen = `${projectDir}/target/codegen/node_modules/@wavemaker-ai/rn-codegen`;
+            const scope = getProjectScope(projectDir);
+            codegen = `${projectDir}/target/codegen/node_modules/${scope}/rn-codegen`;
             if (!fs.existsSync(`${codegen}/index.js`)) {
                 const temp = projectDir + '/target/codegen';
                 fs.mkdirSync(temp, {recursive: true});
@@ -196,14 +198,14 @@ async function transpile(projectDir, previewUrl, incremental) {
                 var uiVersion = ((pom 
                     && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
                     || [])[1];
-                await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-codegen@${uiVersion}`], {
+                await exec('npm', ['install', '--save-dev', `${scope}/rn-codegen@${uiVersion}`], {
                     cwd: temp
                 });
                 taskLogger.incrementProgress(2);
                 let version = semver.coerce(uiVersion).version;
                 if(semver.gte(version, MIN_RN_APP_SUPPORT_VERSION)){
-                    rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker-ai/rn-app`;
-                    await exec('npm', ['install', '--save-dev', `@wavemaker-ai/rn-app@${uiVersion}`], {
+                    rnAppPath = `${projectDir}/target/codegen/node_modules/${scope}/rn-app`;
+                    await exec('npm', ['install', '--save-dev', `${scope}/rn-app@${uiVersion}`], {
                         cwd: temp
                     });
                 } 
