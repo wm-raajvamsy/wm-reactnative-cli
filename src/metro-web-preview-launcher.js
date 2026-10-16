@@ -76,8 +76,13 @@ async function ensureLocalRnApp(codegenRepo, scope, uiVersion) {
         const name = queue.shift();
         const versions = path.join(yalcStore, name);
         if (localPackages[name] || !fs.existsSync(versions)) continue;
+        // Newest publish wins, dated by the yalc.sig each `yalc publish` writes. Not the folder's own date: opening
+        // it in Finder bumps that and drops a .DS_Store, which is how a stale build or the .DS_Store got picked.
+        const publishedAt = v => fs.statSync(fs.existsSync(`${v}/yalc.sig`) ? `${v}/yalc.sig` : `${v}/package.json`).mtimeMs;
         const dir = fs.readdirSync(versions).map(v => path.join(versions, v))
-            .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+            .filter(v => fs.existsSync(`${v}/package.json`))
+            .sort((a, b) => publishedAt(b) - publishedAt(a))[0];
+        if (!dir) continue;
         localPackages[name] = dir;
         queue.push(...yalcDeps(fs.readJSONSync(`${dir}/package.json`)));
     }
@@ -309,6 +314,20 @@ async function build(projectDir, incremental) {
             fs.removeSync(`${appDir}/.wm-prepare-lib-done`);
         }
         refreshOnCodegenChange(projectDir, rnAppPath, `${codegen}/src/templates/project/metro`);
+        // Every build, codegen rewrites node_modules/<scope>/rn-codegen/src/utils.js. From the 2nd build on that file
+        // is a read-only link into the shared vendor store. Studio's container builds as root and never notices; a
+        // non-root CLI build fails with EACCES. Swap the link for a private writable copy: making the link itself
+        // writable would let codegen change the shared vendor file for every project.
+        const codegenUtils = `${appDir}/node_modules/${scope}/rn-codegen/src/utils.js`;
+        try {
+            fs.accessSync(codegenUtils, fs.constants.W_OK);
+        } catch (e) {
+            if (fs.existsSync(codegenUtils)) {
+                const content = fs.readFileSync(codegenUtils);
+                fs.unlinkSync(codegenUtils);
+                fs.writeFileSync(codegenUtils, content, { mode: 0o644 });
+            }
+        }
         // Newer codegen runs esbuild for "web-preview" unless the project opts in to Metro. Set it on every
         // run: a Studio pull can overwrite this file. Older codegen ignores the value and runs Metro anyway.
         const wmConfigFile = `${getWmProjectDir(projectDir)}/wm_rn_config.json`;
@@ -321,6 +340,9 @@ async function build(projectDir, incremental) {
         builtHead = head;
         taskLogger.succeed(previewSteps[3].succeed);
     } catch (e) {
+        // Mark this commit as tried too: otherwise every 3s poll sees it as unbuilt and reruns the same
+        // failing build forever. The next Studio change triggers a new attempt.
+        builtHead = head;
         logger.error({ label: loggerLabel, message: e });
         taskLogger.fail(previewSteps[3].fail);
     }
