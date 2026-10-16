@@ -309,6 +309,13 @@ async function build(projectDir, incremental) {
             fs.removeSync(`${appDir}/.wm-prepare-lib-done`);
         }
         refreshOnCodegenChange(projectDir, rnAppPath, `${codegen}/src/templates/project/metro`);
+        // Newer codegen runs esbuild for "web-preview" unless the project opts in to Metro. Set it on every
+        // run: a Studio pull can overwrite this file. Older codegen ignores the value and runs Metro anyway.
+        const wmConfigFile = `${getWmProjectDir(projectDir)}/wm_rn_config.json`;
+        const wmConfig = fs.readJSONSync(wmConfigFile, { throws: false }) || {};
+        if (wmConfig.profile !== 'new-preview') {
+            fs.writeJSONSync(wmConfigFile, { ...wmConfig, profile: 'new-preview' }, { spaces: 4 });
+        }
         await exec('node', [codegen, 'transpile', '--profile="web-preview"', '--autoClean=false',
             `--incrementalBuild=${!!incremental}`, `--rnAppPath=${rnAppPath}`, getWmProjectDir(projectDir), appDir]);
         builtHead = head;
