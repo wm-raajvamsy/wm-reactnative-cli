@@ -9,6 +9,7 @@ const {
     runExpo, runAndroid, runIos, sync, runESBuildWebPreview
 } = require('./src/expo-launcher');
 const { runWeb } = require('./src/web-preview-launcher');
+const { runMetroWebPreview } = require('./src/metro-web-preview-launcher');
 const updateNotifierModule = require('update-notifier');
 const updateNotifier = updateNotifierModule.default || updateNotifierModule;
 const pkg = require('./package.json');
@@ -24,6 +25,8 @@ const logger = require('./src/logger');
 const {calculateTotalSteps, androidBuildSteps, previewSteps} = require('./src/custom-logger/steps');
 const {overallProgressBar} = require('./src/custom-logger/progress-bar')
 const taskLogger = require('./src/custom-logger/task-logger').spinnerBar;
+
+process.env.PUPPETEER_SKIP_DOWNLOAD = process.env.PUPPETEER_SKIP_DOWNLOAD || 'true';
 
 global.rootDir = process.env.WM_REACTNATIVE_CLI || `${os.homedir()}/.wm-reactnative-cli`;
 global.localStorage = new LocalStorage(`${global.rootDir}/.store`);
@@ -279,6 +282,11 @@ const args = require('yargs')
                     describe: 'if set true, progress bar will show',
                     default: false,
                     type: 'boolean'
+                })
+                .option('metro', {
+                    describe: 'Build with codegen\'s split-bundle (Metro) pipeline, as Studio does. Use --esbuild for projects on older codegen.',
+                    default: false,
+                    type: 'boolean'
                 });
             },
             (args) => {
@@ -297,9 +305,9 @@ const args = require('yargs')
                 const splits = args.previewUrl.split('#');
                 args.previewUrl = splits[0];
                 const authToken = splits[1];
-                if (args.esbuild) {
+                if (args.metro || args.esbuild) {
                     overallProgressBar.setTotal(totalCount-previewSteps[4].total);
-                    runESBuildWebPreview(args.previewUrl, args.clean, authToken);
+                    (args.metro ? runMetroWebPreview : runESBuildWebPreview)(args.previewUrl, args.clean, authToken);
                 } else {
                     overallProgressBar.setTotal(totalCount);
                     runWeb(args.previewUrl, args.clean, authToken, args.proxyHost, args.basePath);

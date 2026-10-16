@@ -16,6 +16,7 @@ const { readAndReplaceFileContent, isExpoWebPreviewContainer, pipeRequestToUrl }
 const { EXPO_SDK_56, MIN_RN_APP_SUPPORT_VERSION } = require('./requirements');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
+const { getProjectScope, getAppScope, DEFAULT_SCOPE } = require('./wm-scope');
 const taskLogger = require('./custom-logger/task-logger').spinnerBar;
 const { previewSteps } = require('./custom-logger/steps');
 const chalk = require('chalk');
@@ -162,7 +163,7 @@ async function transpile(projectDir, previewUrl, incremental) {
     const configJSONFile = `${expoProjectDir}/wm_rn_config.json`;
     const config = fs.readJSONSync(configJSONFile);
     if(packageLockJsonFile){
-        generatedExpoPackageLockJsonFile = path.resolve(`${getExpoProjectDir(expoProjectDir)}/package-lock.json`);
+        generatedExpoPackageLockJsonFile = path.resolve(`${expoProjectDir}/package-lock.json`);
         await fs.copy(packageLockJsonFile, generatedExpoPackageLockJsonFile, { overwrite: false });
     }
     config.serverPath = `./_`;
@@ -268,7 +269,8 @@ async function getCodeGenPath(projectDir) {
             packageLockJsonFile = path.resolve(`${__dirname}/../templates/package/packageLock.json`);
         }
     } else {
-        codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
+        const scope = getProjectScope(projectDir);
+        codegen = `${projectDir}/target/codegen/node_modules/${scope}/rn-codegen`;
         if (!fs.existsSync(`${codegen}/index.js`)) {
             const temp = projectDir + '/target/codegen';
             fs.mkdirSync(temp, {recursive: true});
@@ -279,13 +281,13 @@ async function getCodeGenPath(projectDir) {
             var uiVersion = ((pom 
                 && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
                 || [])[1];
-            await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
+            await exec('npm', ['install', '--save-dev', `${scope}/rn-codegen@${uiVersion}`], {
                 cwd: temp
             });
             let version = semver.coerce(uiVersion).version;
             if(semver.gte(version, MIN_RN_APP_SUPPORT_VERSION)){
-                rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
-                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+                rnAppPath = `${projectDir}/target/codegen/node_modules/${scope}/rn-app`;
+                await exec('npm', ['install', '--save-dev', `${scope}/rn-app@${uiVersion}`], {
                     cwd: temp
                 });
             }
@@ -322,7 +324,7 @@ async function installDependencies(projectDir) {
         {
         overwrite: true
         });
-    const nodeModulesDir = `${expoDir}/node_modules/@wavemaker-ai/app-rn-runtime`;
+    const nodeModulesDir = `${expoDir}/node_modules/${getAppScope(expoDir) || DEFAULT_SCOPE}/app-rn-runtime`;
     if(expoVersion != '54.0.12'){
         const openModule = path.join(expoDir, 'node_modules', 'open', 'index.js');
         if (fs.existsSync(openModule)) {

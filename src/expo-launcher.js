@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const {VERSIONS, hasValidExpoVersion, EXPO_SDK_54_0_12, EXPO_SDK_56, MIN_RN_APP_SUPPORT_VERSION} = require('./requirements');
 const axios = require('axios');
 const { setupProject } = require('./project-sync.service');
+const { getProjectScope } = require('./wm-scope');
 const path = require('path');
 const semver = require('semver');
 //const openTerminal =  require('open-terminal').default;
@@ -35,6 +36,8 @@ var useProxy = false;
 var expoDirectoryHash = "";
 let windowsPreviewDir = "";
 let rnAppPath = "";
+// Overrides set by another web-preview launcher (see metro-web-preview-launcher.js); empty keeps the defaults.
+const hooks = {};
 let etag = "";
 let isExpoPreviewContainer = false;
 
@@ -44,7 +47,7 @@ function launchServiceProxy(projectDir, previewUrl) {
     if (isWebPreview) {
         const app = express();
         app.use('/rn-bundle', express.static(wmProjectDir + '/rn-bundle'));
-        app.get("*", (req, res) => {
+        app.get(/.*/, (req, res) => {
             res.send(`
             <html>
                 <head>
@@ -162,6 +165,9 @@ async function updatePackageJsonFile(path) {
 }
 
 async function transpile(projectDir, previewUrl, incremental) {
+    if (hooks.transpile) {
+        return hooks.transpile(projectDir, previewUrl, incremental);
+    }
     try{
         taskLogger.start(previewSteps[3].start);
         taskLogger.setTotal(previewSteps[3].total);
@@ -180,7 +186,8 @@ async function transpile(projectDir, previewUrl, incremental) {
             taskLogger.incrementProgress(2);
         } else {
             const wmProjectDir = getWmProjectDir(projectDir);
-            codegen = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-codegen`;
+            const scope = getProjectScope(projectDir);
+            codegen = `${projectDir}/target/codegen/node_modules/${scope}/rn-codegen`;
             if (!fs.existsSync(`${codegen}/index.js`)) {
                 const temp = projectDir + '/target/codegen';
                 fs.mkdirSync(temp, {recursive: true});
@@ -191,14 +198,14 @@ async function transpile(projectDir, previewUrl, incremental) {
                 var uiVersion = ((pom 
                     && pom.match(/wavemaker.app.runtime.ui.version>(.*)<\/wavemaker.app.runtime.ui.version>/))
                     || [])[1];
-                await exec('npm', ['install', '--save-dev', `@wavemaker/rn-codegen@${uiVersion}`], {
+                await exec('npm', ['install', '--save-dev', `${scope}/rn-codegen@${uiVersion}`], {
                     cwd: temp
                 });
                 taskLogger.incrementProgress(2);
                 let version = semver.coerce(uiVersion).version;
                 if(semver.gte(version, MIN_RN_APP_SUPPORT_VERSION)){
-                    rnAppPath = `${projectDir}/target/codegen/node_modules/@wavemaker/rn-app`;
-                    await exec('npm', ['install', '--save-dev', `@wavemaker/rn-app@${uiVersion}`], {
+                    rnAppPath = `${projectDir}/target/codegen/node_modules/${scope}/rn-app`;
+                    await exec('npm', ['install', '--save-dev', `${scope}/rn-app@${uiVersion}`], {
                         cwd: temp
                     });
                 } 
@@ -248,6 +255,9 @@ async function transpile(projectDir, previewUrl, incremental) {
 }
 
 async function installDependencies(projectDir) {
+    if (hooks.transpile) {
+        return; // the overriding transpile installs dependencies itself
+    }
     await updatePackageJsonFile(getExpoProjectDir(projectDir)+ '/package.json');
     if(!isWebPreview){
         try{
@@ -279,6 +289,9 @@ async function launchExpo(projectDir, web) {
 }
 
 function clean(path) {
+    if (hooks.clean) {
+        return hooks.clean(path);
+    }
     if (fs.existsSync(path)) {
         rimraf.sync(path, {recursive: true});
     }
@@ -293,6 +306,10 @@ async function getProjectName(previewUrl) {
 
 function getWmProjectDir(projectDir) {
     return `${projectDir}/src/main/webapp`;
+}
+
+async function getAppName(previewUrl) {
+    return (await axios.get(`${previewUrl}/wm_rn_config.json`)).data.name;
 }
 
 function getExpoProjectDir(projectDir) {
@@ -354,7 +371,7 @@ async function watchProjectChanges(previewUrl, onChange, lastModifiedOn) {
                     'if-modified-since' : lastModifiedOn || new Date().toString()
                 }
             }).catch((e) => e.response);
-            if (response.status === 200 && response.data.indexOf('<title>WaveMaker Preview</title>') > 0) {
+            if (response.status === 200 && response.data.indexOf(`<title>${await getAppName(previewUrl)}</title>`) > 0) {
                 lastModifiedOn = response.headers['last-modified'];
                 onChange();
             }
@@ -454,9 +471,9 @@ async function runExpo(previewUrl, clean, authToken) {
         taskLogger.info(`generated esbuild web app at ${projectDir}`);
         taskLogger.succeed(chalk.green("Esbuild finished ") + chalk.blue(`Service proxy launched at ${localHostUrl}`));
         isExpoPreviewContainer = await isExpoWebPreviewContainer(previewUrl);
-        watchProjectChanges(previewUrl, () => {
+        const onProjectChange = () => {
             const startTime = Date.now();
-            syncProject()
+            return syncProject()
             .then(() => {
                 logger.info({
                     label: loggerLabel,
@@ -472,7 +489,8 @@ async function runExpo(previewUrl, clean, authToken) {
                 });
                 taskLogger.info(`Total Time: ${(Date.now() - startTime)/ 1000}s.`);
             });
-        });
+        };
+        (hooks.watchProjectChanges || watchProjectChanges)(previewUrl, onProjectChange);
         watchForPlatformChanges(() => transpile(projectDir, previewUrl, false));
     } catch(e) {
         logger.error({
@@ -579,6 +597,9 @@ module.exports = {
         isWebPreview = true;
         runExpo(previewUrl, clean, authToken);
     },
+    extendWebPreview: (overrides) => Object.assign(hooks, overrides),
+    getWmProjectDir: getWmProjectDir,
+    getExpoProjectDir: getExpoProjectDir,
     runExpo: runExpo,
     runAndroid: (previewUrl, clean) => runNative(previewUrl, 'android', clean),
     runIos: (previewUrl, clean) => runNative(previewUrl, 'ios', clean),

@@ -11,6 +11,7 @@ const {
     checkForAndroidStudioAvailability
 } = require('./requirements');
 const { readAndReplaceFileContent } = require('./utils');
+const { getAppScope } = require('./wm-scope');
 const taskLogger = require('./custom-logger/task-logger').spinnerBar;
 const {androidBuildSteps} = require('./custom-logger/steps');
 
@@ -355,9 +356,16 @@ async function embed(args) {
         `${args.dest}/app.js`,
         (content) => content.replace('props = props || {};', 'props = props || {};\n\tprops.landingPage = props.landingPage || props.pageName;'));    
     fs.mkdirpSync(`${config.src}/android-embed/rnApp/src/main/assets`);
-    await readAndReplaceFileContent(
-        `${args.dest}/node_modules/@wavemaker/app-rn-runtime/components/dialogs/dialogcontent/dialogcontent.component.js`,
-        (content) => content.replace('height', 'maxHeight'));
+    const nodeModules = `${args.dest}/node_modules`;
+    const wmScope = getAppScope(args.dest);
+    if (wmScope) {
+        const dialogContentPath = `${nodeModules}/${wmScope}/app-rn-runtime/components/dialogs/dialogcontent/dialogcontent.component.js`;
+        if (fs.existsSync(dialogContentPath)) {
+            await readAndReplaceFileContent(
+                dialogContentPath,
+                (content) => content.replace('height', 'maxHeight'));
+        }
+    }
     await exec('npx', ['expo', 'export:embed', '--platform',  'android',
             '--dev', 'false', '--entry-file', 'index.js',
             '--bundle-output', 'android-embed/rnApp/src/main/assets/index.android.bundle',
