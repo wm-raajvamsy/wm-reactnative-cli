@@ -4,6 +4,9 @@ A command line utility to build react native apps created using WaveMaker produc
 
 The main goal of wm-reactnative-cli is to simplify generation of APK or IPA for WaveMaker developers. ```wm-reactnative-cli``` combines multiple react-native commands into a single command. First, one has to make sure all the required hardware and software are available and installed. Then execute the command with the appropriate values for arguments.
 
+> [!NOTE]
+> wm-reactnative supports both AI and Classic (non-ai) projects.
+
 ### Command to Install
 
 ~~~
@@ -37,7 +40,7 @@ export WM_REACTNATIVE_CLI="$HOME/cli/"
 ### Requirements
 
 -   Linux or MAC or Windows
--   Node 22.18.0 ([https://nodejs.org/en/blog/release/v14.15.1/](https://nodejs.org/en/download/))
+-   Node 22.22.3 ([https://nodejs.org/en/download/](https://nodejs.org/en/download/))
 -   GIT ([https://git-scm.com/download](https://git-scm.com/download))
 -   Java 17 ([https://openjdk.org/install/](https://openjdk.org/install/))
 -   Yarn (npm install -g yarn)
@@ -81,6 +84,7 @@ wm-reactnative build android <src_dir> [additional_arguments]
 |**\-\-aKeyPassword**|Key Password|
 |**\-\-buildType**|**DEFAULT:** development<br>development or production<br>Use ‘production’ with keystore specified.|
 |**\-\-architecture**|Specifies the target Application Binary Interfaces (ABIs) for the build.<br>**DEFAULT:** All <br>**CHOICES:** armeabi-v7a, arm64-v8a, x86, x86_64. <br>**Example for single ABI:** --architecture=armeabi-v7a <br>**Example for multiple ABIs:** --architecture=armeabi-v7a  --architecture=arm64-v8a |
+|**\-\-verbose**|**DEFAULT:** false <br> if true, then all the logs will be shown in the terminal. |
 
 
 ### Example 1
@@ -107,7 +111,7 @@ wm-reactnative build android "/path/to/src" \
 -   MAC machine
 -   Latest XCODE
 -   CocoaPods ([https://guides.cocoapods.org/using/getting-started.html#toc_3](https://guides.cocoapods.org/using/getting-started.html#toc_3))
--   Node 22.18.0 ([https://nodejs.org/en/blog/release/v12.22.0/](https://nodejs.org/en/download/))
+-   Node 22.22.3 ([https://nodejs.org/en/blog/release/v12.22.0/](https://nodejs.org/en/download/))
 -   GIT ([https://git-scm.com/download/mac](https://git-scm.com/download/mac))
 -   Yarn (npm install -g yarn)
 -   Apple developer or distribution P12 certificates
@@ -133,6 +137,7 @@ wm-reactnative build ios <src_dir> [additional_arguments]
 |**\-\-iCertificatePassword**|Password to unlock the certificate.|
 |**\-\-iProvisioningFile**|Absolute path of provisioning file|
 |**\-\-buildType**|**DEFAULT:** development<bR>development or production <br>Use ‘production’ with an AppStore distribution certificate.|
+|**\-\-verbose**|**DEFAULT:** false <br> if true, then all the logs will be shown in the terminal. |
 
 
 ### Example
@@ -150,9 +155,8 @@ wm-reactnative build ios "/path/to/src" \
 ## Run web-preview
 
 ### Requirements
-- Node 22.18.0 
+- Node 22.22.3 
 - GIT ([https://git-scm.com/download](https://git-scm.com/download))
-- npm 10.9.x
 - Yarn (npm install -g yarn)
 - Expo cli (npm install -g expo-cli@latest)
 
@@ -167,13 +171,13 @@ wm-reactnative run web-preview <preview_url> [additional_arguments]
 |**\-\-clean**| With this flag, existing project directory is removed |
 |**\-\-esbuild**| With this flag, the preview uses the esbuild bundler instead of Expo Metro bundler. Use this for projects on older codegen versions. |
 |**\-\-metro**| With this flag, the preview uses the Metro split-bundle build. This is the standard preview mode used in Studio. |
+|**\-\-verbose**|**DEFAULT:** false <br> if true, then all the logs will be shown in the terminal. |
 
 ## Sync
 
 ### Requirements
-- Node 22.18.0
+- Node 22.22.3
 - GIT ([https://git-scm.com/download](https://git-scm.com/download))
-- npm 10.9.x
 - Yarn (npm install -g yarn)
 - Expo cli (npm install -g expo-cli@latest)
 
@@ -186,6 +190,7 @@ wm-reactnative sync <preview_url> [additional_arguments]
 | **preview_url** | app preview url |
 |**\-\-clean**|**DEFAULT:** false <br> if true, existing project directory is removed |
 |**\-\-useProxy**|**DEFAULT:** false <br> if true, then all preview requests are routed through a internal proxy server. |
+|**\-\-verbose**|**DEFAULT:** false <br> if true, then all the logs will be shown in the terminal. |
 
 After the build is complete:
 
