@@ -10,16 +10,18 @@ const {
 } = require('./src/expo-launcher');
 const { runWeb } = require('./src/web-preview-launcher');
 const { runMetroWebPreview } = require('./src/metro-web-preview-launcher');
-const updateNotifierModule = require('update-notifier');
-const updateNotifier = updateNotifierModule.default || updateNotifierModule;
 const pkg = require('./package.json');
 const { canDoAndroidBuild, canDoIosBuild, showConfirmation } = require('./src/requirements');
-updateNotifier({
-    pkg: pkg,
-    updateCheckInterval : 60 * 60 * 1000
-}).notify({
-	defer: false
-});
+// update-notifier >= 6 is ESM-only; a dynamic import() works from CommonJS on every Node version
+// (a require() throws ERR_REQUIRE_ESM before Node 22.12).
+import('update-notifier').then(({ default: updateNotifier }) => {
+    updateNotifier({
+        pkg: pkg,
+        updateCheckInterval : 60 * 60 * 1000
+    }).notify({
+        defer: false
+    });
+}).catch(() => {});
 const prompt = require('prompt');
 const logger = require('./src/logger');
 const {calculateTotalSteps, androidBuildSteps, previewSteps} = require('./src/custom-logger/steps');
